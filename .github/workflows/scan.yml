@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   check-queue:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 2
     outputs:
       has_work: ${{ steps.check.outputs.has_work }}
@@ -38,7 +38,8 @@ jobs:
   scan:
     needs: check-queue
     if: needs.check-queue.outputs.has_work == 'true'
-    runs-on: ubuntu-latest
+    # Pinned: Playwright's install-deps supports specific Ubuntu releases.
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     # One worker at a time; a dispatch that arrives mid-scan waits, then drains whatever is left.
     concurrency:

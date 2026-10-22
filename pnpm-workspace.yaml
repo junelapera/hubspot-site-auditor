@@ -1,2 +1,9 @@
 packages:
   - apps/*
+
+# Dependencies allowed to run install scripts. pnpm fails CI installs on any
+# unapproved build script, so every one must be listed (true or false).
+allowBuilds:
+  esbuild: true # tsx (worker) needs its platform binary
+  sharp: false
+  unrs-resolver: false
