@@ -1,6 +1,6 @@
 # Status
 
-Last updated: Oct 22, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 started (run comparison done)**
+Last updated: Oct 22, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 started (run comparison and scores done)**
 
 The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This file is the short version: what works, what's next, and what's blocking.
 
@@ -15,9 +15,10 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Worker hosting | GitHub Actions workflow (`scan.yml`): on dispatch, by hand, and every 15 min. Verified from the app's "Run scan" button: a 5-page scan started 42s after the click (Chromium cached) and finished 15s later. Public log shows run IDs only. |
 | CSV exports | Issues (one row per module + rule, Teamwork / Jira columns), images, links, security. Download buttons on every report. Formula-injection safe, UTF-8 BOM for Excel. |
 | Run comparison (Phase 2) | Compare any two scans of a site by issue fingerprint: fixed / new / still open / not rechecked. Report page shows the change since the previous scan; full comparison at `/runs/:id/compare`. Issues can be marked won't fix or false positive with a note; marks are per site, hide the issue in every scan (toggle to show), and keep it out of the issues CSV. Verified: two identical scans show 0 fixed, 0 new. |
+| Scores (Phase 2) | Accessibility score (0–100) and security grade (A–F) per scan, on the report (with change since the previous scan and how they're worked out) and next to every scan in the site's history. Computed when shown, not stored, so marks count and older scans have scores too. Logic in `apps/web/src/lib/scores.ts`. saltedstone.com: 91 and C. |
 | Look and feel | Salted Stone brand from saltedstone.com: cream / ink palette, logo and S² favicon, serif headings, mono uppercase labels, orange pill buttons, brand-colored severity chips, chevron icons, brand-styled dropdowns (Radix Select). Every color pair contrast-checked. |
 | Accessibility of the app itself | axe (WCAG 2.2 AA) passes on all 12 screens. No sideways scrolling down to 320px wide. |
-| Tests | 28 worker + 16 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
+| Tests | 28 worker + 19 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
 
@@ -35,13 +36,13 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - Production is current: https://hubspot-site-auditor.vercel.app (latest: dates in the viewer's time zone; brand dropdown on the compare page; scan comparison and won't-fix marking).
 - Local: `pnpm dev` (web on :3000) and, optionally, `pnpm worker`. If CSS looks stale after a `pnpm build`, stop the dev server, delete `apps/web/.next`, and start it again.
 - Waiting on: 3 client domains (and SecurityScorecard reports if available) for the Phase 1 acceptance runs.
-- Ready to start without input: per-scan accessibility score and A–F security grade (Phase 2 item marked *).
+- Ready to start without input: the rest of Phase 2 (external links and broken anchors, mixed content / cookies / third-party scripts, form check, rule view).
 
 ## Next
 
 1. **Acceptance runs** on 3 client sites (ideally different themes): named-module rate (90%+), alt-text false positives (under 10%), a SecurityScorecard comparison (90%+ match), a 200-page timing (under 15 min), and a test import of the issues CSV into Teamwork. Needs: the 3 domains, and SecurityScorecard reports if available.
 2. **Custom SMTP** in Supabase Auth (optional): only needed for "Forgot password?" emails. Invites don't use email.
-3. **Phase 2, next items:** accessibility score and security grade per run; then File Manager pass, form check, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
+3. **Phase 2, next items:** File Manager pass, form check, link and security checks, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
 
 ## Known issues and decisions
 
@@ -60,6 +61,8 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - **Invite links are shared by hand.** Whoever holds an unused link can claim that account, so send them directly, not in shared channels. They expire after 24 hours.
 - **Only "Forgot password?" sends email**, through Supabase's built-in sender (a few per hour, org members only) until custom SMTP is set up. Admin-generated recovery links also start the per-account reset cooldown.
 - **Local password-reset links fall back to production.** The Supabase redirect allow list has `http://localhost:3000/auth/callback` as an exact URL, which doesn't match the `?next=` query. Change it to `http://localhost:3000/**` if reset needs testing locally. Production is unaffected.
+
+- **Score formulas are our own.** Accessibility: each page starts at 100 and loses 15 / 8 / 3 / 1 per critical / serious / moderate / minor axe issue (floor 0), averaged over scanned pages; alt-text heuristics are left out. Security: 100 minus 20 (old TLS, certificate expiry), 10 (HTTPS redirect, HSTS, CSP, X-Frame-Options) or 5 (others) per failed check; A 90+, B 80+, C 70+, D 60+. Not a SecurityScorecard grade; tune the weights after the acceptance runs. Changing them changes every past scan's score too.
 
 ## Open questions
 

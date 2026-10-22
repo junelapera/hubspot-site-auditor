@@ -5,7 +5,9 @@ import { Badge } from "@/components/badge";
 import { QueueRunButton, SiteSettingsForm } from "@/components/forms";
 import { RunProgress } from "@/components/run-progress";
 import { BackChevron, DisclosureChevron } from "@/components/chevron";
+import { GradeChip } from "@/components/scores";
 import { duration } from "@/lib/format";
+import { loadRunScores } from "@/lib/scores-data";
 import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
 
@@ -19,6 +21,7 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
   ]);
   if (!site) notFound();
 
+  const scores = await loadRunScores(supabase, site.id, runs ?? []);
   const active = runs?.find((r) => r.status === "queued" || r.status === "running");
 
   return (
@@ -80,7 +83,7 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
                   )}
                   <span className="text-ink/70"><TimeAgo iso={run.created_at} /></span>
                 </div>
-                <div className="flex items-center gap-3 text-ink/85">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink/85">
                   {run.status === "done" && runs.slice(runs.indexOf(run) + 1).some((r) => r.status === "done") && (
                     <Link href={`/runs/${run.id}/compare`} className="link font-mono text-[11px] font-bold tracking-[0.06em] uppercase">
                       Compare
@@ -88,6 +91,14 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
                   )}
                   {run.status === "done" && run.summary && (
                     <>
+                      {scores.get(run.id)?.accessibility != null && (
+                        <span>Accessibility <span className="font-medium tabular-nums">{scores.get(run.id)!.accessibility}</span></span>
+                      )}
+                      {scores.get(run.id)?.security && (
+                        <span className="inline-flex items-center gap-1.5">
+                          Security <GradeChip grade={scores.get(run.id)!.security!.grade} />
+                        </span>
+                      )}
                       <span>{run.summary.pagesScanned} pages</span>
                       <span>{run.summary.issues} issues</span>
                       <span>{run.summary.imagesFlagged} images</span>

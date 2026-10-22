@@ -9,13 +9,13 @@ const ISSUE_FIELDS = "fingerprint, rule_id, help, impact, scope, module, pages";
 export async function previousRun(supabase: SupabaseClient, run: Pick<Run, "site_id" | "created_at">) {
   const { data } = await supabase
     .from("runs")
-    .select("id, created_at")
+    .select("id, created_at, status, summary")
     .eq("site_id", run.site_id)
     .eq("status", "done")
     .lt("created_at", run.created_at)
     .order("created_at", { ascending: false })
     .limit(1)
-    .maybeSingle<Pick<Run, "id" | "created_at">>();
+    .maybeSingle<Pick<Run, "id" | "created_at" | "status" | "summary">>();
   return data;
 }
 

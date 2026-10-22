@@ -42,6 +42,15 @@ Re-scan a site after fixes and the report shows what changed since its previous 
 
 Any issue can be marked **won't fix** or **false positive** with a note. Marks belong to the site, so the issue stays hidden in every scan of that site until someone unmarks it; a toggle on the report shows marked issues. Marked issues are left out of the counts and the issues CSV.
 
+## Scores
+
+Each scan gets an **accessibility score** (0–100) and a **security grade** (A–F), shown on the report with the change since the previous scan, and next to every scan in the site's history.
+
+- **Accessibility score:** each scanned page starts at 100 and loses 15 / 8 / 3 / 1 points per critical / serious / moderate / minor issue on it (never below 0); the score is the average over scanned pages. Automated (axe) issues only; marked issues don't count.
+- **Security grade:** 100 minus points per failed check (20 for old TLS or certificate expiry; 10 for the HTTPS redirect, HSTS, CSP, X-Frame-Options; 5 for the rest). A is 90+, B 80+, C 70+, D 60+, otherwise F. It's the tool's own measure, not a SecurityScorecard grade.
+
+Scores are worked out when a page is shown (`apps/web/src/lib/scores.ts`), so changing a weight changes every past scan's score too.
+
 ## How it works
 
 ```
@@ -166,5 +175,5 @@ pnpm build       # web app production build
 ## Roadmap
 
 - **Phase 1 — MVP:** module-aware scan, alt text, internal links, security headers, fix suggestions, report views, CSV export. [phases/phase-1-mvp.md](phases/phase-1-mvp.md)
-- **Phase 2 — Re-scans and File Manager** (in progress; run comparison and won't-fix marking done): forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
+- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, and scores done): forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
 - **Phase 3 — Client-facing:** shareable reports, scheduled scans, Teamwork push, CMS API module paths, Claude API fixes. [phases/phase-3-client-facing.md](phases/phase-3-client-facing.md)

@@ -3,7 +3,9 @@ import { LocalTime } from "@/components/local-time";
 import { notFound } from "next/navigation";
 import { BackChevron, NextChevron } from "@/components/chevron";
 import { loadComparison, previousRun } from "@/lib/compare-data";
+import { ScoreCards } from "@/components/scores";
 import { duration } from "@/lib/format";
+import { loadRunScores } from "@/lib/scores-data";
 import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
 import { ImagesView, LinksView, ModulesView, PagesView, SecurityView } from "./views";
@@ -39,7 +41,11 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
   ]);
   const marked = new Set((marks ?? []).map((m) => m.fingerprint));
   const hiddenCount = (fingerprints ?? []).filter((f) => marked.has(f.fingerprint)).length;
-  const comparison = previous ? await loadComparison(supabase, run.site_id, previous.id, run.id) : null;
+  const [comparison, scores] = await Promise.all([
+    previous ? loadComparison(supabase, run.site_id, previous.id, run.id) : null,
+    loadRunScores(supabase, run.site_id, previous ? [run, previous] : [run]),
+  ]);
+  const runScores = scores.get(run.id);
 
   const s = run.summary;
   const tiles = s
@@ -81,6 +87,8 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
         </p>
       ) : (
         <>
+          {runScores && <ScoreCards scores={runScores} previous={previous ? scores.get(previous.id) : undefined} />}
+
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             {tiles.map((t) => (
               <div key={t.label} className="card p-4">

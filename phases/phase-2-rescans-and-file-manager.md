@@ -1,6 +1,6 @@
 # Phase 2 — Re-scans and File Manager
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history and comparison done · Depends on: [Phase 1](phase-1-mvp.md)
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, and scores done · Depends on: [Phase 1](phase-1-mvp.md)
 
 ## Goal
 
@@ -36,7 +36,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 - [x] Compare any two runs by issue fingerprint: **fixed**, **new**, **still open**, plus **not rechecked** when the newer scan didn't cover an issue's pages
 - [x] Mark an issue **won't fix** or **false positive** with a note
 - [x] Marked issues stay hidden in later runs (matched by fingerprint), with a toggle to show them; also left out of the issues CSV
-- [ ] Accessibility score and security grade (A–F) per run, shown over time *
+- [x] Accessibility score and security grade (A–F) per run, shown over time *
 
 ### 2. File Manager pass
 

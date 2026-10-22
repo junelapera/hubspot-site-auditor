@@ -61,3 +61,6 @@ export const LINK_CHECK_LABEL: Record<string, string> = {
 };
 
 export const MARK_LABEL = { wont_fix: "Won't fix", false_positive: "False positive" } as const;
+
+// Grade chips use the brand chip colors, ink text.
+export const GRADE_STYLE = { A: "bg-mint", B: "bg-teal", C: "bg-yellow", D: "bg-orange", F: "bg-pink" } as const;
