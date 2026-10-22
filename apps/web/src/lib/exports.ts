@@ -1,10 +1,10 @@
 // CSV exports for a run. Pure functions over database rows so they can be tested.
 import { toCsv, type Cell } from "./csv";
-import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel } from "./format";
+import { ALT_CHECK_LABEL, FORM_CHECK_IMPACT, FORM_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel } from "./format";
 import { summarizeRules, WCAG_SC } from "./rules";
-import type { Fix, Impact, ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ModuleSummaryRow, Scope, ScriptDomainRow, SecurityRow } from "./types";
+import type { Fix, FormRow, Impact, ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ModuleSummaryRow, Scope, ScriptDomainRow, SecurityRow } from "./types";
 
-export const EXPORT_KINDS = ["issues", "rules", "images", "links", "security", "mixed-content", "scripts", "libraries"] as const;
+export const EXPORT_KINDS = ["issues", "rules", "images", "links", "security", "mixed-content", "scripts", "libraries", "forms"] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];
 
 const MAX_PAGES_LISTED = 50;
@@ -189,6 +189,29 @@ export function rulesCsv(issues: IssueRow[]): string {
       r.help_url,
     ]),
   );
+}
+
+/** One row per form problem (a check on a field, or on the whole form); forms with none get one row. */
+export function formsCsv(forms: FormRow[]): string {
+  const rows: Cell[][] = [];
+  for (const f of forms) {
+    const status = f.status === "checked" ? (f.submitted ? "Checked, submitted empty" : "Checked") : "Not checked";
+    const form: Cell[] = [f.label ?? f.form_id, f.form_id, moduleLabel(f.scope, f.module), status];
+    const where: Cell[] = [f.pages.length, pageList(f.pages)];
+    if (!f.findings.length) rows.push([...form, "", "", "", f.note ?? "No problems found", "", ...where]);
+    for (const x of f.findings) {
+      rows.push([
+        ...form,
+        FORM_CHECK_LABEL[x.check] ?? x.check,
+        FORM_CHECK_IMPACT[x.check] ?? "",
+        x.field ?? "(whole form)",
+        x.detail,
+        fixText(f.fixes[x.check]),
+        ...where,
+      ]);
+    }
+  }
+  return toCsv(["Form", "Form ID", "Module", "Status", "Problem", "Severity", "Field", "Detail", "Suggested fix", "Pages", "Found on"], rows);
 }
 
 export function exportFilename(domain: string, createdAt: string, kind: ExportKind): string {

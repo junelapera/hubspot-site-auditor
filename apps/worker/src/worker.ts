@@ -88,6 +88,8 @@ async function processRun(run: Run) {
         // null: the Retire.js database couldn't be downloaded, so libraries weren't checked
         jsLibraries: result.libraries?.length ?? null,
         jsLibrariesVulnerable: result.libraries?.filter((l) => l.severity).length ?? null,
+        forms: result.forms.length,
+        formIssues: result.forms.reduce((n, f) => n + f.findings.length, 0),
       },
     });
     console.log(`Run ${run.id}: done (${result.issues.length} issues, ${(result.stats.durationMs / 1000).toFixed(0)}s)`);
@@ -200,6 +202,23 @@ async function saveResults(runId: string, r: AuditResult) {
     fix: l.fix,
     urls: l.urls,
     pages: l.pages,
+  })));
+
+  await insert("forms", r.forms.map((f) => ({
+    run_id: runId,
+    form_id: f.formId,
+    label: f.label,
+    kind: f.kind,
+    status: f.status,
+    note: f.note,
+    submitted: f.submitted,
+    field_count: f.fieldCount,
+    findings: f.findings,
+    fixes: f.fixes,
+    scope: f.location.scope,
+    module: f.location.module,
+    path: f.location.path,
+    pages: f.pages,
   })));
 
   await insert("script_domains", r.scripts.map((s) => ({

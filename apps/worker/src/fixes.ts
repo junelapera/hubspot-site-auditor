@@ -5,7 +5,7 @@ import type { LinkCheck, LinkIssue } from "./checks/links.js";
 import type { JsLibrary } from "./checks/libraries.js";
 import type { MixedContentIssue } from "./checks/page-security.js";
 import type { SecurityResult } from "./checks/security.js";
-import type { Issue } from "./types.js";
+import type { FormCheck, Issue } from "./types.js";
 
 export interface Snippet {
   lang: "html" | "hubl" | "css" | "js" | "text";
@@ -339,6 +339,172 @@ export function suggestLinkFix(issue: LinkIssue): FixSuggestion {
     },
   };
   return fixes[issue.check];
+}
+
+// ---------- Forms ----------
+
+export const FORM_FIX_LOCATION: Record<FormCheck, string> = {
+  "missing-label": "Form editor",
+  "placeholder-only": "Form editor",
+  "consent-no-label": "Form editor (consent options)",
+  "required-not-announced": "Theme JS or form editor",
+  "errors-not-shown": "Theme JS",
+  "error-not-associated": "Theme JS",
+  "errors-not-announced": "Theme JS",
+  "no-focus-outline": "Theme CSS",
+  "not-keyboard-reachable": "Theme or form editor",
+  "low-contrast": "Theme CSS",
+};
+
+// Runs when a HubSpot form (v3 embed) is ready or re-renders, so attributes survive validation.
+const ON_FORM_READY = `window.addEventListener("message", (event) => {
+  if (event.data.type !== "hsFormCallback" || event.data.eventName !== "onFormReady") return;
+  const form = document.querySelector(\`form[data-form-id="\${event.data.id}"]\`);
+  if (form) fixForm(form);
+});`;
+
+/** One fix per kind of form problem (not per field): the setting or snippet that clears it everywhere. */
+export function suggestFormFix(check: FormCheck): FixSuggestion {
+  const fixes: Record<FormCheck, FixSuggestion> = {
+    "missing-label": {
+      summary: "Give every field a label in the form editor.",
+      steps: [
+        "Open the form in HubSpot (Marketing > Forms) and fill in each field's label.",
+        "If the design hides labels, keep them and hide them visually in the theme CSS instead of deleting them.",
+        REVIEW_NOTE,
+      ],
+      snippet: {
+        lang: "css",
+        code: `/* Hide labels visually but keep them for screen readers */
+.hs-form .hs-form-field > label {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap;
+}`,
+      },
+    },
+    "placeholder-only": {
+      summary: "Use a real label, not just placeholder text.",
+      steps: [
+        "In the form editor, move the placeholder text into the field's label (placeholders disappear as soon as someone types).",
+        "Keep a short hint in the help text or placeholder only if it adds something the label doesn't.",
+        REVIEW_NOTE,
+      ],
+    },
+    "consent-no-label": {
+      summary: "Label the consent checkbox.",
+      steps: [
+        "In the form's GDPR / consent options, make sure each checkbox has its consent text set (it becomes the label).",
+        "If the theme restyles checkboxes, check it doesn't hide the <label> or move its text out of it.",
+        REVIEW_NOTE,
+      ],
+    },
+    "required-not-announced": {
+      summary: "Required fields show a * but screen readers aren't told they're required.",
+      steps: [
+        "Add aria-required to every field HubSpot marks with *, when the form loads.",
+        "Also keep the * explained once at the top of the form (\"Fields marked * are required\").",
+        REVIEW_NOTE,
+      ],
+      snippet: {
+        lang: "js",
+        code: `function fixForm(form) {
+  form.querySelectorAll(".hs-form-field").forEach((field) => {
+    if (!field.querySelector(".hs-form-required")) return;
+    field.querySelectorAll("input, select, textarea").forEach((el) => el.setAttribute("aria-required", "true"));
+  });
+}
+${ON_FORM_READY}`,
+      },
+    },
+    "errors-not-shown": {
+      summary: "An empty submit showed no error messages next to the required fields.",
+      steps: [
+        "Check the theme isn't hiding .hs-error-msgs, and that the form's validation runs on submit, not only on blur.",
+        "Test by hand: submit the form empty with a keyboard and a screen reader.",
+        REVIEW_NOTE,
+      ],
+    },
+    "error-not-associated": {
+      summary: "Error messages aren't linked to their fields, so screen readers don't read them with the field.",
+      steps: [
+        "When HubSpot shows an error, give it an id, point the field's aria-describedby at it, and set aria-invalid.",
+        REVIEW_NOTE,
+      ],
+      snippet: {
+        lang: "js",
+        code: `// Link HubSpot error messages to their fields as they appear.
+new MutationObserver(() => {
+  document.querySelectorAll(".hs-form .hs-form-field").forEach((field, i) => {
+    const input = field.querySelector("input, select, textarea");
+    const error = field.querySelector(".hs-error-msgs");
+    if (!input) return;
+    if (error) {
+      error.id ||= \`hs-error-\${i}\`;
+      input.setAttribute("aria-describedby", error.id);
+      input.setAttribute("aria-invalid", "true");
+    } else {
+      input.removeAttribute("aria-invalid");
+    }
+  });
+}).observe(document.body, { childList: true, subtree: true });`,
+      },
+    },
+    "errors-not-announced": {
+      summary: "Errors appear silently: screen reader users aren't told the submit failed.",
+      steps: [
+        "Move focus to the first invalid field after a failed submit, or put the error summary in a role=\"alert\" region.",
+        REVIEW_NOTE,
+      ],
+      snippet: {
+        lang: "js",
+        code: `// After a failed submit, focus the first field with an error.
+document.addEventListener("submit", () => {
+  setTimeout(() => {
+    const invalid = document.querySelector(".hs-form .hs-form-field .hs-error-msgs");
+    invalid?.closest(".hs-form-field")?.querySelector("input, select, textarea")?.focus();
+  }, 100);
+}, true);`,
+      },
+    },
+    "no-focus-outline": {
+      summary: "Fields and buttons don't show where keyboard focus is.",
+      steps: [
+        "Add a visible focus style for form fields and the submit button in the theme CSS (at least 3:1 against the background).",
+        "Remove any outline: none on .hs-input / .hs-button that isn't replaced by another focus style.",
+        REVIEW_NOTE,
+      ],
+      snippet: {
+        lang: "css",
+        code: `.hs-form .hs-input:focus-visible,
+.hs-form .hs-button:focus-visible,
+.hs-form input[type="checkbox"]:focus-visible,
+.hs-form input[type="radio"]:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}`,
+      },
+    },
+    "not-keyboard-reachable": {
+      summary: "Some fields or the submit button can't be reached with Tab.",
+      steps: [
+        "Look for tabindex=\"-1\" on fields or the button, or a custom control (styled checkbox, dropdown) that replaced the real input.",
+        "Keep the native input focusable and style it, rather than hiding it and drawing a fake one.",
+        REVIEW_NOTE,
+      ],
+    },
+    "low-contrast": {
+      summary: "Placeholder or error text doesn't have enough contrast (4.5:1).",
+      steps: ["Darken the placeholder and error text colours in the theme CSS until they reach 4.5:1 against the field background.", REVIEW_NOTE],
+      snippet: {
+        lang: "css",
+        code: `.hs-form .hs-input::placeholder { color: #595959; }   /* 7:1 on white */
+.hs-form .hs-error-msg, .hs-form .hs-error-msgs label { color: #b3261e; }   /* 6.5:1 on white */`,
+      },
+    },
+  };
+  return fixes[check];
 }
 
 // ---------- JavaScript libraries ----------

@@ -3,12 +3,12 @@ import { Badge } from "@/components/badge";
 import { DisclosureChevron, NextChevron } from "@/components/chevron";
 import { FixPanel } from "@/components/fix-panel";
 import { MarkControl } from "@/components/mark-control";
-import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT } from "@/lib/format";
+import { ALT_CHECK_LABEL, FORM_CHECK_IMPACT, FORM_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT } from "@/lib/format";
 import { previousRun } from "@/lib/compare-data";
 import { createClient } from "@/lib/supabase/server";
 import { summarizeRules, WCAG_SC } from "@/lib/rules";
 import { moduleKey, summarizeModules } from "@/lib/summary";
-import type { Impact, ImageRow, IssueMark, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, PageRow, Run, ScriptDomainRow, SecurityRow } from "@/lib/types";
+import type { FormRow, Impact, ImageRow, IssueMark, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, PageRow, Run, ScriptDomainRow, SecurityRow } from "@/lib/types";
 
 const IMPACT_ORDER: Record<Impact, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 };
 
@@ -116,7 +116,7 @@ function IssueDetail({ issue, siteId, mark }: { issue: IssueRow; siteId: string;
           {issue.rule_id}
         </a>
       </header>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <div className="space-y-2">
           {issue.path && <p className="font-mono text-xs text-ink/75">{issue.path}</p>}
           <pre tabIndex={0} aria-label="Failing HTML" className="overflow-x-auto rounded-lg border border-ink/30 bg-cream p-2 font-mono text-xs text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><code>{issue.html}</code></pre>
@@ -369,6 +369,87 @@ export async function LinksView({ runId }: ViewProps) {
           </div>
         </details>
       ))}
+    </section>
+  );
+}
+
+// ---------- Forms ----------
+
+export async function FormsView({ runId }: ViewProps) {
+  const supabase = await createClient();
+  const [{ data: forms }, { data: run }] = await Promise.all([
+    supabase.from("forms").select("*").eq("run_id", runId).order("id").returns<FormRow[]>(),
+    supabase.from("runs").select("summary").eq("id", runId).maybeSingle<Pick<Run, "summary">>(),
+  ]);
+  if (run?.summary?.forms === undefined) return <Empty>Forms weren&apos;t checked in this scan. Run a new scan to check them.</Empty>;
+  if (!forms?.length) return <Empty>No HubSpot forms found on the scanned pages.</Empty>;
+
+  const sorted = [...forms].sort((a, b) => b.findings.length - a.findings.length || b.pages.length - a.pages.length);
+  return (
+    <section aria-label="Forms" className="space-y-2">
+      <p className="text-sm text-ink/75">
+        Each HubSpot form is tested once: labels, required fields, Tab order and focus, then submitted <strong>empty</strong> to see its
+        error messages. Every non-GET request is blocked during the test, so nothing reaches HubSpot and no contacts are created.
+      </p>
+      {sorted.map((f) => {
+        const checks = [...new Set(f.findings.map((x) => x.check))];
+        return (
+          <details key={f.id} className="group card">
+            <summary className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-4 py-3 text-sm">
+              <DisclosureChevron />
+              <span className="min-w-0 flex-1">
+                <span className="font-medium text-ink">{f.label ?? (f.kind === "iframe" ? "Embedded form" : "Untitled form")}</span>
+                <span className="block break-all font-mono text-xs text-ink/70">{f.form_id}</span>
+              </span>
+              {f.status === "not-checked" ? (
+                <Badge tone="minor">Not checked</Badge>
+              ) : f.findings.length ? (
+                <Badge tone={checks.some((c) => FORM_CHECK_IMPACT[c] === "critical") ? "critical" : "serious"}>
+                  {f.findings.length} {f.findings.length === 1 ? "problem" : "problems"}
+                </Badge>
+              ) : (
+                <Badge tone="pass">No problems</Badge>
+              )}
+              <span className="text-xs text-ink/70">
+                {moduleLabel(f.scope, f.module)} · {f.pages.length} {f.pages.length === 1 ? "page" : "pages"}
+              </span>
+            </summary>
+            <div className="space-y-4 border-t border-ink/30 p-4">
+              {(f.note || f.status === "checked") && (
+                <p className="text-sm text-ink/85">
+                  {f.status === "checked" && `${f.field_count} ${f.field_count === 1 ? "field" : "fields"}${f.submitted ? ", submitted empty" : ""}. `}
+                  {f.note}
+                </p>
+              )}
+              {checks.map((check) => (
+                <article key={check} className="space-y-3 rounded-lg border border-ink/30 bg-paper p-3">
+                  <header className="flex flex-wrap items-center gap-2">
+                    <Badge tone={FORM_CHECK_IMPACT[check] ?? "moderate"}>{FORM_CHECK_IMPACT[check] ?? "moderate"}</Badge>
+                    <h3 className="text-sm font-semibold text-ink">{FORM_CHECK_LABEL[check] ?? check}</h3>
+                  </header>
+                  <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                    <ul className="space-y-1 text-xs text-ink/85">
+                      {f.findings
+                        .filter((x) => x.check === check)
+                        .map((x, i) => (
+                          <li key={i}>
+                            {x.field && <span className="font-medium text-ink">{x.field}: </span>}
+                            {x.detail}
+                          </li>
+                        ))}
+                    </ul>
+                    {f.fixes[check] && <FixPanel fix={f.fixes[check]} />}
+                  </div>
+                </article>
+              ))}
+              <div>
+                <h4 className="mb-1 text-xs font-medium text-ink/70">Found on</h4>
+                <PageList pages={f.pages} />
+              </div>
+            </div>
+          </details>
+        );
+      })}
     </section>
   );
 }

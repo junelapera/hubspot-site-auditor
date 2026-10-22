@@ -66,3 +66,30 @@ export const MARK_LABEL = { wont_fix: "Won't fix", false_positive: "False positi
 
 // Grade chips use the brand chip colors, ink text.
 export const GRADE_STYLE = { A: "bg-mint", B: "bg-teal", C: "bg-yellow", D: "bg-orange", F: "bg-pink" } as const;
+
+// Mirrors FormCheck in apps/worker/src/types.ts.
+export const FORM_CHECK_LABEL: Record<string, string> = {
+  "missing-label": "No label",
+  "placeholder-only": "Placeholder as label",
+  "consent-no-label": "Consent checkbox has no label",
+  "required-not-announced": "Required not announced",
+  "errors-not-shown": "No errors on empty submit",
+  "error-not-associated": "Error not tied to field",
+  "errors-not-announced": "Errors not announced",
+  "no-focus-outline": "No visible focus",
+  "not-keyboard-reachable": "Not reachable with Tab",
+  "low-contrast": "Low contrast",
+};
+
+export const FORM_CHECK_IMPACT: Record<string, "critical" | "serious" | "moderate"> = {
+  "missing-label": "critical",
+  "placeholder-only": "critical",
+  "consent-no-label": "critical",
+  "not-keyboard-reachable": "critical",
+  "required-not-announced": "serious",
+  "error-not-associated": "serious",
+  "errors-not-announced": "serious",
+  "no-focus-outline": "serious",
+  "low-contrast": "serious",
+  "errors-not-shown": "moderate",
+};

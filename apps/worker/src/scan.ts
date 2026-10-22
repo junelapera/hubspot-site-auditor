@@ -3,9 +3,10 @@ import AxeBuilder from "@axe-core/playwright";
 import pLimit from "p-limit";
 import { chromium, type Browser } from "playwright";
 import { isRateLimited, retryDelay, sleep, USER_AGENT } from "./http.js";
+import { testForm } from "./checks/forms.js";
 import type { LibraryDetector } from "./checks/libraries.js";
 import { isFirstParty, parseMixedContentMessage, parseSetCookie } from "./checks/page-security.js";
-import type { AxeFinding, CookieInfo, DetectedLibrary, Impact, ImageInfo, InsecureResource, LinkInfo, Location, PageResult } from "./types.js";
+import type { AxeFinding, CookieInfo, DetectedLibrary, Impact, ImageInfo, InsecureResource, LinkInfo, Location, PageForm, PageResult } from "./types.js";
 
 const INSPECT_SRC = readFileSync(new URL("./browser/inspect.js", import.meta.url), "utf8");
 
@@ -25,9 +26,13 @@ export interface ScanOptions {
 /** Library matches per script URL, shared by every page in a scan so each script is checked once. */
 type LibraryCache = Map<string, Promise<DetectedLibrary[]>>;
 
+const FORM_TIMEOUT_MS = 30_000;
+
 export async function scanPages(urls: string[], opts: ScanOptions = {}): Promise<PageResult[]> {
   const { concurrency = 3, delayMs = 500, onPage, detector } = opts;
   const libraryCache: LibraryCache = new Map();
+  // Each HubSpot form (by form ID) is tested on the first page it's found on.
+  const formsTested = new Set<string>();
   const browser = await chromium.launch();
   const limit = pLimit(concurrency);
   let done = 0;
@@ -36,7 +41,7 @@ export async function scanPages(urls: string[], opts: ScanOptions = {}): Promise
     return await Promise.all(
       urls.map((url) =>
         limit(async () => {
-          const result = await scanPage(browser, url, detector && { detector, cache: libraryCache });
+          const result = await scanPage(browser, url, detector && { detector, cache: libraryCache }, formsTested);
           onPage?.(result, ++done, urls.length);
           await sleep(delayMs);
           return result;
@@ -52,10 +57,11 @@ export async function scanPage(
   browser: Browser,
   url: string,
   libraries?: { detector: LibraryDetector; cache: LibraryCache },
+  formsTested?: Set<string>,
 ): Promise<PageResult> {
   const context = await browser.newContext({ viewport: DESKTOP, userAgent: USER_AGENT });
   const page = await context.newPage();
-  const empty = { findings: [], images: [], links: [], insecure: [], cookies: [], scripts: [], libraries: [], anchors: [] };
+  const empty = { findings: [], images: [], links: [], insecure: [], cookies: [], scripts: [], libraries: [], anchors: [], forms: [] };
 
   // What the browser saw while loading: mixed-content warnings, script requests, first-party Set-Cookie headers.
   const consoleInsecure: InsecureResource[] = [];
@@ -122,7 +128,7 @@ export async function scanPage(
     const nodes = axe.violations.flatMap((v) => v.nodes.map((node) => ({ v, node })));
     const inspected = (await page.evaluate(
       `(${INSPECT_SRC})(${JSON.stringify({ targets: nodes.map(({ node }) => node.target) })})`,
-    )) as { targets: Location[]; images: ImageInfo[]; links: LinkInfo[]; insecure: InsecureResource[]; anchors: string[] };
+    )) as { targets: Location[]; images: ImageInfo[]; links: LinkInfo[]; insecure: InsecureResource[]; anchors: string[]; forms: PageForm[] };
 
     const findings: AxeFinding[] = nodes.map(({ v, node }, i) => ({
       ruleId: v.id,
@@ -136,6 +142,20 @@ export async function scanPage(
       location: inspected.targets[i],
     }));
 
+    // Forms last: the test types Tab, submits empty and blocks non-GET requests, so the page is spent after it.
+    if (formsTested) {
+      for (const form of inspected.forms) {
+        if (form.crossOrigin || formsTested.has(form.formId)) continue;
+        formsTested.add(form.formId);
+        try {
+          form.test = await withTimeout(testForm(page, form.index), FORM_TIMEOUT_MS);
+        } catch (err) {
+          form.test = null;
+          form.testError = (err as Error).message.split("\n")[0];
+        }
+      }
+    }
+
     return {
       url,
       status: response?.status() ?? null,
@@ -148,10 +168,19 @@ export async function scanPage(
       scripts: [...scripts],
       libraries: (await Promise.all(libraryReads)).flat(),
       anchors: inspected.anchors,
+      forms: inspected.forms,
     };
   } catch (err) {
     return { url, status: null, redirected: false, error: (err as Error).message, ...empty };
   } finally {
     await context.close();
   }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timed out after ${ms / 1000}s`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }

@@ -53,6 +53,49 @@ export interface DetectedLibrary {
   url: string;
 }
 
+export type FormCheck =
+  | "missing-label"
+  | "placeholder-only"
+  | "consent-no-label"
+  | "required-not-announced"
+  | "errors-not-shown"
+  | "error-not-associated"
+  | "errors-not-announced"
+  | "no-focus-outline"
+  | "not-keyboard-reachable"
+  | "low-contrast";
+
+/** One failing form check. field is null for checks on the whole form. */
+export interface FormFinding {
+  check: FormCheck;
+  field: string | null;
+  detail: string;
+}
+
+/** Outcome of testing a form once in a scan (see scan.ts). */
+export interface FormTest {
+  fieldCount: number;
+  /** Submitted empty (with every non-GET request blocked), to see its error messages. */
+  submitted: boolean;
+  /** Why it wasn't submitted, if it wasn't. */
+  notSubmittedReason?: string;
+  /** Non-GET requests the page tried during the test, all blocked. */
+  blockedRequests: number;
+  findings: FormFinding[];
+}
+
+/** A form on a page. test is set on the page where the form was tested; null for cross-origin iframes or failed tests. */
+export interface PageForm {
+  index: number;
+  formId: string;
+  label: string | null;
+  crossOrigin: boolean;
+  src: string | null;
+  location: Location;
+  test?: FormTest | null;
+  testError?: string;
+}
+
 /** One failing axe node on one page. */
 export interface AxeFinding {
   ruleId: string;
@@ -82,6 +125,7 @@ export interface PageResult {
   libraries: DetectedLibrary[];
   /** IDs and <a name> values on the page: valid #fragment targets. */
   anchors: string[];
+  forms: PageForm[];
 }
 
 /** A deduplicated issue: same rule + same element path + same module, across pages. */

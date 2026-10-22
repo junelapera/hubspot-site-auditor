@@ -47,6 +47,8 @@ export interface RunSummary {
   /** null: the Retire.js database couldn't be downloaded, so libraries weren't checked. */
   jsLibraries?: number | null;
   jsLibrariesVulnerable?: number | null;
+  forms?: number;
+  formIssues?: number;
 }
 
 export interface Run {
@@ -167,6 +169,28 @@ export interface JsLibraryRow {
   vulnerabilities: { severity: string; summary: string; cves: string[]; info: string }[];
   fix: Fix | null;
   urls: string[];
+  pages: string[];
+}
+
+export interface FormFinding {
+  check: string;
+  field: string | null;
+  detail: string;
+}
+
+export interface FormRow {
+  id: number;
+  form_id: string;
+  label: string | null;
+  kind: "hubspot" | "iframe";
+  status: "checked" | "not-checked";
+  note: string | null;
+  submitted: boolean;
+  field_count: number;
+  findings: FormFinding[];
+  fixes: Record<string, Fix>;
+  scope: Scope;
+  module: string | null;
   pages: string[];
 }
 

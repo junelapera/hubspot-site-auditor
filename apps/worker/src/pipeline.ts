@@ -1,6 +1,7 @@
 import { dedupeIssues, namedModuleRate, summarizeModules } from "./aggregate.js";
 import { auditImages, type FlaggedImage } from "./checks/alt.js";
 import { auditAnchors, auditExternalLinks, auditInternalLinks, type LinkIssue } from "./checks/links.js";
+import { auditForms, type FormSummary } from "./checks/forms.js";
 import { auditLibraries, checkLibraries, createDetector, loadRetireRepo, type JsLibrary } from "./checks/libraries.js";
 import {
   auditMixedContent,
@@ -15,6 +16,7 @@ import { crawlSitemap, type CrawlOptions } from "./crawl.js";
 import {
   suggestAltFix,
   suggestAxeFix,
+  suggestFormFix,
   suggestLibraryFix,
   suggestLinkFix,
   suggestMixedContentFix,
@@ -50,6 +52,8 @@ export interface AuditResult {
   scripts: ScriptDomain[];
   /** Null when the Retire.js database couldn't be downloaded; the check is then left out. */
   libraries: (JsLibrary & { fix: FixSuggestion | null })[] | null;
+  /** Fixes keyed by form check, one per kind of problem the form has. */
+  forms: (FormSummary & { fixes: Record<string, FixSuggestion> })[];
   stats: {
     pagesScanned: number;
     pagesFailed: number;
@@ -63,7 +67,7 @@ export interface AuditResult {
   };
 }
 
-/** Crawl → scan → map to modules → alt / links / security / mixed content / scripts → fix suggestions. */
+/** Crawl → scan (incl. form tests) → map to modules → alt / links / security / mixed content / scripts → fix suggestions. */
 export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promise<AuditResult> {
   const started = Date.now();
   const mark = (() => {
@@ -124,6 +128,10 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
     mixedContent: mixedContent.map((m) => ({ ...m, fix: suggestMixedContentFix(m) })),
     scripts: auditThirdPartyScripts(pages, siteHost),
     libraries: libraries?.map((l) => ({ ...l, fix: suggestLibraryFix(l) })) ?? null,
+    forms: auditForms(pages).map((f) => ({
+      ...f,
+      fixes: Object.fromEntries([...new Set(f.findings.map((x) => x.check))].map((c) => [c, suggestFormFix(c)])),
+    })),
     stats: {
       pagesScanned: pages.filter((p) => !p.error).length,
       pagesFailed: pages.filter((p) => p.error).length,

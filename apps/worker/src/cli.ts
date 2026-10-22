@@ -38,7 +38,7 @@ const result = await runAudit(
   },
 );
 
-const { stats, modules, issues, images, links, security, mixedContent, scripts, libraries } = result;
+const { stats, modules, issues, images, links, security, mixedContent, scripts, libraries, forms } = result;
 console.log(`\n${stats.rawFindings} page-level findings → ${issues.length} unique issues in ${modules.length} groups`);
 const secs = (ms: number) => `${(ms / 1000).toFixed(0)}s`;
 console.log(
@@ -104,6 +104,12 @@ console.table(
     Example: l.urls[0]?.slice(0, 70),
   })),
 );
+
+console.log(`\nForms: ${forms.length}`);
+for (const f of forms) {
+  console.log(`  ${f.label ?? f.formId} · ${f.status}${f.submitted ? ", submitted empty" : ""}${f.note ? ` (${f.note})` : ""} · ${f.pages.length} pages`);
+  for (const x of f.findings) console.log(`    - ${x.check}${x.field ? ` [${x.field}]` : ""}: ${x.detail}`);
+}
 
 mkdirSync("scans", { recursive: true });
 const out = `scans/${result.siteHost}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;

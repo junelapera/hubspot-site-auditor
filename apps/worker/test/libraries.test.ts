@@ -46,7 +46,7 @@ test("vulnerabilities respect below and atOrAbove", () => {
 });
 
 const page = (url: string, libraries: PageResult["libraries"]): PageResult => ({
-  url, status: 200, redirected: false, findings: [], images: [], links: [], insecure: [], cookies: [], scripts: [], libraries, anchors: [],
+  url, status: 200, redirected: false, findings: [], images: [], links: [], insecure: [], cookies: [], scripts: [], libraries, anchors: [], forms: [],
 });
 
 test("libraries dedupe by version across pages, vulnerable first", () => {

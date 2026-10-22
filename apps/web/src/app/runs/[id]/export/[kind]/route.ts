@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   EXPORT_KINDS,
   exportFilename,
+  formsCsv,
   imagesCsv,
   issuesCsv,
   librariesCsv,
@@ -14,7 +15,7 @@ import {
 } from "@/lib/exports";
 import { createClient } from "@/lib/supabase/server";
 import { summarizeModules } from "@/lib/summary";
-import type { ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ScriptDomainRow, SecurityRow } from "@/lib/types";
+import type { FormRow, ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ScriptDomainRow, SecurityRow } from "@/lib/types";
 
 /** GET /runs/:id/export/:kind — CSV download, read as the signed-in user (RLS applies). */
 export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/export/[kind]">) {
@@ -71,6 +72,11 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/e
     case "scripts": {
       const { data } = await supabase.from("script_domains").select("*").eq("run_id", id).order("id").returns<ScriptDomainRow[]>();
       csv = scriptsCsv(data ?? []);
+      break;
+    }
+    case "forms": {
+      const { data } = await supabase.from("forms").select("*").eq("run_id", id).order("id").returns<FormRow[]>();
+      csv = formsCsv(data ?? []);
       break;
     }
     case "libraries": {

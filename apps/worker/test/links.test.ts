@@ -6,7 +6,7 @@ import type { LinkInfo, Location, PageResult } from "../src/types.js";
 const loc: Location = { scope: "module", module: ".nav", named: true, partial: null, path: "a" };
 const link = (resolved: string, href = resolved): LinkInfo => ({ href, resolved, text: "Link", location: loc });
 const page = (url: string, links: LinkInfo[], anchors: string[] = []): PageResult => ({
-  url, status: 200, redirected: false, findings: [], images: [], links, insecure: [], cookies: [], scripts: [], libraries: [], anchors,
+  url, status: 200, redirected: false, findings: [], images: [], links, insecure: [], cookies: [], scripts: [], libraries: [], anchors, forms: [],
 });
 const status = (finalStatus: number | null, error?: string): UrlStatus => ({ url: "u", hops: finalStatus ? [{ url: "u", status: finalStatus }] : [], finalStatus, error });
 

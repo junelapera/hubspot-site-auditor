@@ -25,6 +25,7 @@ const page = (url: string, over: Partial<PageResult>): PageResult => ({
   scripts: [],
   libraries: [],
   anchors: [],
+  forms: [],
   ...over,
 });
 

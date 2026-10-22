@@ -8,7 +8,7 @@ import { duration } from "@/lib/format";
 import { loadRunScores } from "@/lib/scores-data";
 import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
-import { ImagesView, LinksView, ModulesView, PagesView, RulesView, SecurityView } from "./views";
+import { FormsView, ImagesView, LinksView, ModulesView, PagesView, RulesView, SecurityView } from "./views";
 
 const VIEWS = {
   modules: { label: "Modules", component: ModulesView },
@@ -16,6 +16,7 @@ const VIEWS = {
   pages: { label: "Pages", component: PagesView },
   images: { label: "Images", component: ImagesView },
   links: { label: "Links", component: LinksView },
+  forms: { label: "Forms", component: FormsView },
   security: { label: "Security", component: SecurityView },
 } as const;
 type ViewKey = keyof typeof VIEWS;
@@ -135,6 +136,7 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
                   ]
                 : []),
               ...(s?.jsLibraries != null ? [{ kind: "libraries", label: "JS libraries" }] : []),
+              ...(s?.forms !== undefined ? [{ kind: "forms", label: "Forms" }] : []),
             ].map((e) => (
               <a
                 key={e.kind}

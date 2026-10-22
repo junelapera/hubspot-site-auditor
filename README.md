@@ -12,6 +12,7 @@ See the [PRD](HubSpot%20Site%20Auditor%20—%20PRD.md) for the full spec and [ST
 | --- | --- |
 | Accessibility | axe-core (WCAG 2.1 / 2.2 A and AA) on every sitemap page, each failing element mapped to its module |
 | Alt text | Missing, file-name, generic, empty-on-link, too-long, and redundant alt on page images |
+| Forms | Each HubSpot form: labels, required fields, Tab order and visible focus, placeholder and error contrast, and error messages after an **empty** submit (every non-GET request is blocked, so no contacts are created) |
 | Links | Broken internal and external links, broken `#anchor` links, redirect chains, redirects to dead pages, internal `http://` links |
 | Security | HTTPS redirect, HSTS, TLS versions, certificate expiry, security headers, version leaks, mixed content (mapped to modules), cookie flags, third-party script domains (new ones flagged), JavaScript libraries with known vulnerabilities (Retire.js) |
 
@@ -175,5 +176,5 @@ pnpm build       # web app production build
 ## Roadmap
 
 - **Phase 1 — MVP:** module-aware scan, alt text, internal links, security headers, fix suggestions, report views, CSV export. [phases/phase-1-mvp.md](phases/phase-1-mvp.md)
-- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, scores, security checks, external links, anchors, and the WCAG view done): forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
+- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, scores, security checks, external links, anchors, WCAG view, and form check done): forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
 - **Phase 3 — Client-facing:** shareable reports, scheduled scans, Teamwork push, CMS API module paths, Claude API fixes. [phases/phase-3-client-facing.md](phases/phase-3-client-facing.md)

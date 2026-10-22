@@ -1,6 +1,6 @@
 # Phase 2 — Re-scans and File Manager
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links, anchors, and the WCAG view done · Depends on: [Phase 1](phase-1-mvp.md)
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links, anchors, WCAG view, and the form check done · Depends on: [Phase 1](phase-1-mvp.md)
 
 ## Goal
 
@@ -48,17 +48,17 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 ### 3. Form check
 
-- [ ] Detect HubSpot forms on each page
-- [ ] Missing label (placeholder only, or no programmatic label) → form editor
-- [ ] Required state not announced → theme JS or form editor
-- [ ] Errors not tied to their field or not announced → theme JS
-- [ ] No visible focus outline on fields or submit → theme CSS
-- [ ] Label, placeholder, or error text contrast below 4.5:1 → theme CSS
-- [ ] Consent checkbox has no label → form editor
-- [ ] Field or submit unreachable with Tab → theme or form editor
-- [ ] Tab through each form and **submit empty only** — never a filled form, so no test contacts are created
-- [ ] Forms in a cross-origin iframe listed as "not checked" for manual testing
-- [ ] **Forms view**: each form with failing checks and the page it sits on *
+- [x] Detect HubSpot forms on each page
+- [x] Missing label (placeholder only, or no programmatic label) → form editor
+- [x] Required state not announced → theme JS or form editor
+- [x] Errors not tied to their field or not announced → theme JS
+- [x] No visible focus outline on fields or submit → theme CSS
+- [x] Label, placeholder, or error text contrast below 4.5:1 → theme CSS
+- [x] Consent checkbox has no label → form editor
+- [x] Field or submit unreachable with Tab → theme or form editor
+- [x] Tab through each form and **submit empty only** — never a filled form, so no test contacts are created
+- [x] Forms in a cross-origin iframe listed as "not checked" for manual testing
+- [x] **Forms view**: each form with failing checks and the page it sits on *
 
 ### 4. Links and redirects (remaining checks)
 
@@ -78,7 +78,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 ### 6. Fix suggestions (new templates)
 
-- [ ] Forms: the form editor setting to change, or a theme CSS/JS snippet
+- [x] Forms: the form editor setting to change, or a theme CSS/JS snippet
 - [ ] Links: likely replacement URL, or a ready-made redirect row
 - [ ] Alt text: why the current alt fails, plus an example of good alt for that kind of image
 
@@ -99,7 +99,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 - [x] Re-scanning an unchanged site shows **zero** new and zero fixed issues (fingerprints are stable) — verified on two identical 10-page saltedstone.com scans
 - [ ] After fixing one module, a re-scan shows its issues as fixed on every affected page
-- [ ] Form check creates **no** contacts in the HubSpot portal (verify in CRM after a test run)
+- [ ] Form check creates **no** contacts in the HubSpot portal (verify in CRM after a test run). Network side verified: once the block is installed, a test page sent no POST at all; still to confirm in the CRM
 - [ ] Missing-redirect CSV imports into HubSpot's bulk redirect tool without edits
 - [ ] After a test migration, **zero** old URLs are left without a redirect at launch
 - [ ] External link checker stays within the per-domain rate limit (no bans from common sites)

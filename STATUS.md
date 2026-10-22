@@ -1,6 +1,6 @@
 # Status
 
-Last updated: Oct 22, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 in progress (comparison, scores, all security checks, external links, anchors, WCAG view done)**
+Last updated: Oct 22, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 in progress (comparison, scores, all security checks, external links, anchors, WCAG view, form check done)**
 
 The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This file is the short version: what works, what's next, and what's blocking.
 
@@ -20,9 +20,10 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | JS library check (Phase 2) | Every script the pages loaded is matched against the Retire.js database (URL, file name, content, hash; bodies come from the page load, so no extra requests). Vulnerable versions fail the "JavaScript libraries" check (10 points of the grade) and are listed on the Security tab with CVEs and a fix; CSV too. Scripts HubSpot serves itself get a "nothing to change in the theme" fix. saltedstone.com: moment.js 2.30.1 (medium CVE) inside HubSpot's forms script, so the grade dropped from C to D. |
 | External links and anchors (Phase 2) | External links: one request at a time per domain, 1s apart, HEAD then GET (also on 404), up to 500 URLs per scan; a built-in skip list (LinkedIn, Facebook, Instagram, X, TikTok, etc.). Only certain deaths are reported (404, 410, 5xx, unknown domain, refused connection); 401 / 403 / 429 / 999 and timeouts aren't. Broken anchors: `#id` links whose target isn't on the page (same page, or another scanned page). Both appear on the Links tab and links CSV; the tab says how many external links were checked or skipped. saltedstone.com: 20 external links on 3 blog posts checked in 5s, none dead. |
 | WCAG view (Phase 2) | "WCAG" report tab: one row per axe rule, in success-criterion order with names and levels (best-practice rules last), worst severity, issues, pages, and which modules it's in. Respects marks (toggle to show). "WCAG summary" CSV for conformance write-ups. |
+| Form check (Phase 2) | Each HubSpot form (by form ID) is tested once per scan, on the first page it's on: labels (missing, placeholder-only, consent), required fields marked * but not announced, Tab reachability and visible focus (on the field, its wrapper or label; transitions disabled first), placeholder contrast; then, if it has required fields and an empty submit button, it's submitted **empty** with every non-GET request blocked, and the error messages are checked (shown, tied to the field, announced) along with error text contrast (axe). Cross-origin form iframes are listed as not checked. Forms tab with one fix per kind of problem, and a forms CSV. saltedstone.com: the contact form has no visible focus on 6 fields (confirmed by screenshot); the blog subscribe form's error isn't tied to its field and its error text is 2.58:1. |
 | Look and feel | Salted Stone brand from saltedstone.com: cream / ink palette, logo and S² favicon, serif headings, mono uppercase labels, orange pill buttons, brand-colored severity chips, chevron icons, brand-styled dropdowns (Radix Select). Every color pair contrast-checked. |
 | Accessibility of the app itself | axe (WCAG 2.2 AA) passes on all 12 screens. No sideways scrolling down to 320px wide. |
-| Tests | 42 worker + 22 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
+| Tests | 46 worker + 22 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
 
@@ -40,13 +41,14 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - Production is current: https://hubspot-site-auditor.vercel.app (latest: dates in the viewer's time zone; brand dropdown on the compare page; scan comparison and won't-fix marking).
 - Local: `pnpm dev` (web on :3000) and, optionally, `pnpm worker`. If CSS looks stale after a `pnpm build`, stop the dev server, delete `apps/web/.next`, and start it again.
 - Waiting on: 3 client domains (and SecurityScorecard reports if available) for the Phase 1 acceptance runs.
-- Ready to start without input: the rest of Phase 2 (form check, mobile-width scan, sampling mode, URL list instead of sitemap).
+- Ready to start without input: the rest of Phase 2 (URL list in the app, sampling mode, mobile-width scan, alt-text fix templates).
 
 ## Next
 
 1. **Acceptance runs** on 3 client sites (ideally different themes): named-module rate (90%+), alt-text false positives (under 10%), a SecurityScorecard comparison (90%+ match), a 200-page timing (under 15 min), and a test import of the issues CSV into Teamwork. Needs: the 3 domains, and SecurityScorecard reports if available.
 2. **Custom SMTP** in Supabase Auth (optional): only needed for "Forgot password?" emails. Invites don't use email.
-3. **Phase 2, next items:** form check, File Manager pass, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
+3. **Confirm the form check creates no contacts:** after a scan of a site with forms, check its HubSpot CRM for new contacts. The network side is already verified.
+4. **Phase 2, next items:** URL list, sampling mode, mobile-width scan, File Manager pass, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
 
 ## Known issues and decisions
 
@@ -77,6 +79,9 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 
 - **WCAG names are a hand-kept list** (`apps/web/src/lib/rules.ts`, WCAG 2.2 A/AA). A criterion axe tags that isn't in it shows its number only.
 - **External link skip list is built in** (`EXTERNAL_SKIP` in `apps/worker/src/checks/links.ts`), not a per-site setting yet. Anchors on pages that weren't scanned can't be checked, and links starting `#hs-` (HubSpot chat/meeting triggers), `#top`, `#/` and `#!` are ignored.
+
+- **Form tests are a page's last step.** The test presses Tab, submits empty and leaves every non-GET request blocked, so nothing else runs on that page afterwards. Forms without required fields, without a visible submit button, or with pre-filled fields aren't submitted (the reason is shown). Label contrast comes from the main axe pass (Modules tab), not the form check.
+- **Scans from a URL list request every internal link** (there's no sitemap to skip known-live pages), so the link stage is slower: 55s for 3 pages including the homepage.
 
 ## Open questions
 

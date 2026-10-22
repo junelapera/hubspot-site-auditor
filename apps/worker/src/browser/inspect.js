@@ -2,7 +2,7 @@
 // page.evaluate gets exactly this source.
 //
 // Input:  { targets: string[][] }  — axe node targets
-// Output: { targets: Location[], images: ImageInfo[], links: LinkInfo[], insecure: InsecureResource[], anchors: string[] }
+// Output: { targets: Location[], images: ImageInfo[], links: LinkInfo[], insecure: InsecureResource[], anchors: string[], forms: PageForm[] }
 (function inspect({ targets }) {
   const MODULE_WRAPPER = ".hs_cos_wrapper_widget, .hs_cos_wrapper_type_module";
   // Editor-owned content: fixed in the post/page editor or CTA tool, not in theme code.
@@ -233,11 +233,48 @@
     ]),
   ].filter(Boolean);
 
+  // HubSpot forms rendered in the page get data-audit-form so browser/forms.js can find
+  // them; forms in cross-origin iframes can't be tested and are listed as not checked.
+  const HS_FORM = "form.hs-form, form[data-form-id], form.hsfc-Form, [data-hsfc-id] form";
+  // Form hosts by name, or a path segment that is "form(s)" (not "platform").
+  const FORM_PROVIDER =
+    /hsforms|typeform|jotform|formstack|wufoo|cognitoforms|formassembly|123formbuilder|forms\.office|docs\.google\.com\/forms|(^|[./-])forms?([./-]|$)/i;
+  const forms = [...document.querySelectorAll(HS_FORM)].map((form, i) => {
+    form.setAttribute("data-audit-form", String(i));
+    const container = form.closest("[data-hsfc-id]");
+    return {
+      index: i,
+      formId: form.getAttribute("data-form-id") || (container && container.getAttribute("data-hsfc-id")) || form.id || `form-${i}`,
+      label: nearbyHeading(form) || null,
+      crossOrigin: false,
+      src: null,
+      location: locate(form),
+    };
+  });
+  for (const frame of document.querySelectorAll("iframe[src]")) {
+    let url;
+    try {
+      url = new URL(frame.getAttribute("src"), document.baseURI);
+    } catch {
+      continue;
+    }
+    if (url.origin === location.origin || !FORM_PROVIDER.test(url.hostname + url.pathname)) continue;
+    forms.push({
+      index: -1,
+      formId: url.hostname + url.pathname,
+      label: frame.getAttribute("title") || nearbyHeading(frame) || null,
+      crossOrigin: true,
+      src: url.origin + url.pathname,
+      location: locate(frame),
+    });
+  }
+
   return {
     targets: targets.map(locateTarget),
     images,
     links,
     insecure,
     anchors,
+    forms,
   };
 })
