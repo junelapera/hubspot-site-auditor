@@ -1,6 +1,6 @@
 # Status
 
-Last updated: Oct 22, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 in progress (comparison, scores, all security checks, external links and anchors done)**
+Last updated: Oct 22, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 in progress (comparison, scores, all security checks, external links, anchors, WCAG view done)**
 
 The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This file is the short version: what works, what's next, and what's blocking.
 
@@ -19,9 +19,10 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Page security checks (Phase 2) | Mixed content (http:// resources on HTTPS pages, from the markup and Chrome's console, mapped to modules; blocked vs upgraded), first-party cookie flags (Set-Cookie headers only; names, never values), and third-party script domains with "New" since the previous scan. Mixed content and cookies are security-check rows, so they count toward the grade. Shown on the Security tab; CSVs for both lists. Verified on saltedstone.com (14 script domains, 2 cookies OK, no mixed content) and badssl.com's mixed-content test pages. |
 | JS library check (Phase 2) | Every script the pages loaded is matched against the Retire.js database (URL, file name, content, hash; bodies come from the page load, so no extra requests). Vulnerable versions fail the "JavaScript libraries" check (10 points of the grade) and are listed on the Security tab with CVEs and a fix; CSV too. Scripts HubSpot serves itself get a "nothing to change in the theme" fix. saltedstone.com: moment.js 2.30.1 (medium CVE) inside HubSpot's forms script, so the grade dropped from C to D. |
 | External links and anchors (Phase 2) | External links: one request at a time per domain, 1s apart, HEAD then GET (also on 404), up to 500 URLs per scan; a built-in skip list (LinkedIn, Facebook, Instagram, X, TikTok, etc.). Only certain deaths are reported (404, 410, 5xx, unknown domain, refused connection); 401 / 403 / 429 / 999 and timeouts aren't. Broken anchors: `#id` links whose target isn't on the page (same page, or another scanned page). Both appear on the Links tab and links CSV; the tab says how many external links were checked or skipped. saltedstone.com: 20 external links on 3 blog posts checked in 5s, none dead. |
+| WCAG view (Phase 2) | "WCAG" report tab: one row per axe rule, in success-criterion order with names and levels (best-practice rules last), worst severity, issues, pages, and which modules it's in. Respects marks (toggle to show). "WCAG summary" CSV for conformance write-ups. |
 | Look and feel | Salted Stone brand from saltedstone.com: cream / ink palette, logo and S² favicon, serif headings, mono uppercase labels, orange pill buttons, brand-colored severity chips, chevron icons, brand-styled dropdowns (Radix Select). Every color pair contrast-checked. |
 | Accessibility of the app itself | axe (WCAG 2.2 AA) passes on all 12 screens. No sideways scrolling down to 320px wide. |
-| Tests | 42 worker + 20 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
+| Tests | 42 worker + 22 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
 
@@ -39,7 +40,7 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - Production is current: https://hubspot-site-auditor.vercel.app (latest: dates in the viewer's time zone; brand dropdown on the compare page; scan comparison and won't-fix marking).
 - Local: `pnpm dev` (web on :3000) and, optionally, `pnpm worker`. If CSS looks stale after a `pnpm build`, stop the dev server, delete `apps/web/.next`, and start it again.
 - Waiting on: 3 client domains (and SecurityScorecard reports if available) for the Phase 1 acceptance runs.
-- Ready to start without input: the rest of Phase 2 (form check, rule view, mobile-width scan, sampling mode, URL list instead of sitemap).
+- Ready to start without input: the rest of Phase 2 (form check, mobile-width scan, sampling mode, URL list instead of sitemap).
 
 ## Next
 
@@ -74,6 +75,7 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - **Retire.js database is downloaded each scan** from raw.githubusercontent.com (~600 KB). If that fails, the scan carries on and the library check shows "not checked" (no security row, so the grade isn't affected). Retire.js "func" detectors (code run in the page) aren't used, so a library only defined in inline code isn't found.
 - **HubSpot's own scripts count toward the grade.** A vulnerable library inside HubSpot's forms/chat scripts can't be fixed by the client but is still flagged, as external scanners would. Revisit if this makes grades unhelpful.
 
+- **WCAG names are a hand-kept list** (`apps/web/src/lib/rules.ts`, WCAG 2.2 A/AA). A criterion axe tags that isn't in it shows its number only.
 - **External link skip list is built in** (`EXTERNAL_SKIP` in `apps/worker/src/checks/links.ts`), not a per-site setting yet. Anchors on pages that weren't scanned can't be checked, and links starting `#hs-` (HubSpot chat/meeting triggers), `#top`, `#/` and `#!` are ignored.
 
 ## Open questions

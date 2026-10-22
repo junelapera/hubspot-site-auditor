@@ -82,6 +82,7 @@ export interface IssueRow {
   impact: Impact;
   help: string;
   help_url: string;
+  tags: string[];
   scope: Scope;
   module: string | null;
   named: boolean;

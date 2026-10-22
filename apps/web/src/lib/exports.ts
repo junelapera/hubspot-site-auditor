@@ -1,9 +1,10 @@
 // CSV exports for a run. Pure functions over database rows so they can be tested.
 import { toCsv, type Cell } from "./csv";
 import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel } from "./format";
+import { summarizeRules, WCAG_SC } from "./rules";
 import type { Fix, Impact, ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ModuleSummaryRow, Scope, ScriptDomainRow, SecurityRow } from "./types";
 
-export const EXPORT_KINDS = ["issues", "images", "links", "security", "mixed-content", "scripts", "libraries"] as const;
+export const EXPORT_KINDS = ["issues", "rules", "images", "links", "security", "mixed-content", "scripts", "libraries"] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];
 
 const MAX_PAGES_LISTED = 50;
@@ -168,6 +169,24 @@ export function librariesCsv(rows: JsLibraryRow[]): string {
       l.pages.length,
       l.fix ? fixText(l.fix) : "",
       pageList(l.pages),
+    ]),
+  );
+}
+
+/** One row per axe rule with its WCAG criteria: a conformance summary. */
+export function rulesCsv(issues: IssueRow[]): string {
+  return toCsv(
+    ["WCAG criteria", "Level", "Rule", "Description", "Worst severity", "Issues", "Pages affected", "Where (module: pages)", "Reference"],
+    summarizeRules(issues).map((r): Cell[] => [
+      r.criteria.length ? r.criteria.map((c) => `${c} ${WCAG_SC[c]?.name ?? ""}`.trim()).join("\n") : "Best practice",
+      [...new Set(r.criteria.map((c) => WCAG_SC[c]?.level).filter(Boolean))].join(" / "),
+      r.rule_id,
+      r.help,
+      r.worst_impact,
+      r.issue_count,
+      r.pages_affected,
+      r.modules.map((m) => `${m.label}: ${m.pages}`).join("\n"),
+      r.help_url,
     ]),
   );
 }

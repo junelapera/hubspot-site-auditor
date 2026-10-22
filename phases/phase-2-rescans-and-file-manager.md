@@ -1,6 +1,6 @@
 # Phase 2 — Re-scans and File Manager
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links and anchors done · Depends on: [Phase 1](phase-1-mvp.md)
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links, anchors, and the WCAG view done · Depends on: [Phase 1](phase-1-mvp.md)
 
 ## Goal
 
@@ -90,7 +90,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 ### 8. Views
 
-- [ ] **Rule view**: issues grouped by WCAG rule, for conformance summaries *
+- [x] **Rule view**: issues grouped by WCAG rule, for conformance summaries *
 - [ ] Comparison view for two runs
 
 \* Not assigned to a phase in the PRD. Placed here because it depends on something built in this phase.

@@ -7,6 +7,7 @@ import {
   librariesCsv,
   linksCsv,
   mixedContentCsv,
+  rulesCsv,
   scriptsCsv,
   securityCsv,
   type ExportKind,
@@ -35,7 +36,8 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/e
 
   let csv: string;
   switch (kind as ExportKind) {
-    case "issues": {
+    case "issues":
+    case "rules": {
       // Issues marked won't fix / false positive stay out of remediation tickets.
       const [{ data: issues }, { data: marks }] = await Promise.all([
         supabase.from("issues").select("*").eq("run_id", id).returns<IssueRow[]>(),
@@ -43,7 +45,7 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/e
       ]);
       const marked = new Set((marks ?? []).map((m) => m.fingerprint));
       const open = (issues ?? []).filter((i) => !marked.has(i.fingerprint));
-      csv = issuesCsv(open, summarizeModules(open, id));
+      csv = kind === "rules" ? rulesCsv(open) : issuesCsv(open, summarizeModules(open, id));
       break;
     }
     case "images": {

@@ -8,10 +8,11 @@ import { duration } from "@/lib/format";
 import { loadRunScores } from "@/lib/scores-data";
 import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
-import { ImagesView, LinksView, ModulesView, PagesView, SecurityView } from "./views";
+import { ImagesView, LinksView, ModulesView, PagesView, RulesView, SecurityView } from "./views";
 
 const VIEWS = {
   modules: { label: "Modules", component: ModulesView },
+  rules: { label: "WCAG", component: RulesView },
   pages: { label: "Pages", component: PagesView },
   images: { label: "Images", component: ImagesView },
   links: { label: "Links", component: LinksView },
@@ -123,6 +124,7 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
             <h2 id="exports-heading" className="eyebrow mr-1">Download CSV</h2>
             {[
               { kind: "issues", label: "Issues (Teamwork / Jira)" },
+              { kind: "rules", label: "WCAG summary" },
               { kind: "images", label: "Images" },
               { kind: "links", label: "Links" },
               { kind: "security", label: "Security" },

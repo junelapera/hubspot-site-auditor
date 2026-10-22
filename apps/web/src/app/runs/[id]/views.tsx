@@ -6,6 +6,7 @@ import { MarkControl } from "@/components/mark-control";
 import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT } from "@/lib/format";
 import { previousRun } from "@/lib/compare-data";
 import { createClient } from "@/lib/supabase/server";
+import { summarizeRules, WCAG_SC } from "@/lib/rules";
 import { moduleKey, summarizeModules } from "@/lib/summary";
 import type { Impact, ImageRow, IssueMark, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, PageRow, Run, ScriptDomainRow, SecurityRow } from "@/lib/types";
 
@@ -128,6 +129,77 @@ function IssueDetail({ issue, siteId, mark }: { issue: IssueRow; siteId: string;
       </div>
       <MarkControl siteId={siteId} fingerprint={issue.fingerprint} mark={mark} />
     </article>
+  );
+}
+
+// ---------- Rules (WCAG) ----------
+
+export async function RulesView({ runId, siteId, showHidden }: ViewProps) {
+  const { issues, markByFp } = await issuesWithMarks(runId, siteId);
+  if (!issues.length) return <Empty>No accessibility issues found on the scanned pages.</Empty>;
+
+  const hiddenCount = issues.filter((i) => markByFp.has(i.fingerprint)).length;
+  const visible = showHidden ? issues : issues.filter((i) => !markByFp.has(i.fingerprint));
+  const rules = summarizeRules(visible);
+
+  return (
+    <section aria-label="Issues by WCAG rule" className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-ink/75">
+          Grouped by WCAG success criterion, for conformance summaries. Automated checks only: passing here doesn&apos;t mean a
+          criterion is met.
+        </p>
+        {hiddenCount > 0 && (
+          <Link href={`/runs/${runId}?view=rules${showHidden ? "" : "&hidden=1"}`} className="btn btn-secondary btn-sm">
+            {showHidden ? "Hide" : "Show"} {hiddenCount} marked {hiddenCount === 1 ? "issue" : "issues"}
+          </Link>
+        )}
+      </div>
+      {!rules.length && <Empty>Every issue in this scan is marked won&apos;t fix or false positive.</Empty>}
+      {rules.map((r) => (
+        <details key={r.rule_id} className="group card">
+          <summary className="grid cursor-pointer select-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,3fr)_6rem_6rem_7rem]">
+            <span className="flex items-start gap-2">
+              <DisclosureChevron className="mt-0.5" />
+              <span>
+                <span className="text-sm font-medium text-ink">
+                  {r.criteria.length
+                    ? r.criteria.map((c) => `${c} ${WCAG_SC[c]?.name ?? ""}`.trim()).join(" · ")
+                    : "Best practice (not a WCAG requirement)"}
+                  {r.criteria.length > 0 && (
+                    <span className="chip ml-2 bg-paper">
+                      {[...new Set(r.criteria.map((c) => WCAG_SC[c]?.level).filter(Boolean))].join(" / ") || "WCAG"}
+                    </span>
+                  )}
+                </span>
+                <span className="block text-xs text-ink/70">{r.help}</span>
+              </span>
+            </span>
+            <span className="text-sm text-ink/85">{r.issue_count} {r.issue_count === 1 ? "issue" : "issues"}</span>
+            <span><Badge tone={r.worst_impact}>{r.worst_impact}</Badge></span>
+            <span className="text-sm text-ink/85">{r.pages_affected} {r.pages_affected === 1 ? "page" : "pages"}</span>
+          </summary>
+          <div className="space-y-2 border-t border-ink/30 p-4 text-sm">
+            <p>
+              axe rule{" "}
+              <a href={r.help_url} target="_blank" rel="noreferrer" className="link font-mono text-xs">{r.rule_id}</a>
+            </p>
+            <h3 className="text-xs font-medium text-ink/70">Where it happens</h3>
+            <ul className="space-y-1">
+              {r.modules.map((m) => (
+                <li key={m.label} className="flex flex-wrap gap-x-3">
+                  <span className="font-mono text-ink">{m.label}</span>
+                  <span className="text-ink/75">
+                    {m.issues} {m.issues === 1 ? "issue" : "issues"} · {m.pages} {m.pages === 1 ? "page" : "pages"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <Link href={`/runs/${runId}?view=modules`} className="link inline-block py-1 text-xs">See fixes in the Modules tab</Link>
+          </div>
+        </details>
+      ))}
+    </section>
   );
 }
 

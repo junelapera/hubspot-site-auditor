@@ -6,7 +6,7 @@ import type { ImageRow, IssueRow, ModuleSummaryRow } from "../types";
 const fix = { summary: "Raise contrast.", steps: ["Darken the text."], snippet: { lang: "css" as const, code: ".hero a { color: #000; }" } };
 const issue = (over: Partial<IssueRow>): IssueRow => ({
   id: 1, fingerprint: "f", rule_id: "color-contrast", impact: "serious", help: "Elements must meet minimum color contrast ratio thresholds",
-  help_url: "https://dequeuniversity.com/rules/axe/4.10/color-contrast", scope: "module", module: ".hero", named: true, path: "a",
+  help_url: "https://dequeuniversity.com/rules/axe/4.10/color-contrast", tags: ["wcag2aa", "wcag143"], scope: "module", module: ".hero", named: true, path: "a",
   html: "<a>", failure_summary: "", fix, pages: ["https://x.com/a"], ...over,
 });
 const summary = (scope: ModuleSummaryRow["scope"], module: string | null): ModuleSummaryRow => ({
