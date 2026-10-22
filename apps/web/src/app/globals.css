@@ -1,12 +1,86 @@
 @import "tailwindcss";
 
-@theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+/*
+ * Salted Stone look (saltedstone.com): warm cream paper, ink-green text, flat
+ * ink lines, orange pill buttons, mono uppercase labels, soft serif headings.
+ *
+ * Contrast (checked, WCAG AA): ink on every brand color >= 5.09:1, so chips and
+ * buttons always use ink text. Brand orange/red fail as text on cream (2.5 /
+ * 3.6:1): use rust for error text. Muted text is ink at 70% minimum (5.2:1).
+ * Focus rings are ink: orange is under 3:1 against cream.
+ */
+@theme {
+  --color-cream: #f1ece1;
+  --color-paper: #fbf9f4;
+  --color-ink: #1d2923;
+  --color-tan: #b7ae93;
+  --color-orange: #d68231;
+  --color-yellow: #f8c839;
+  --color-teal: #93d2ca;
+  --color-mint: #badbb3;
+  --color-pink: #f8ae97;
+  --color-purple: #c09dbe;
+  --color-rust: #a8341a;
 }
 
-/* Internal tool: one light theme, tuned for dense tables. */
+@theme inline {
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif;
+  /* New Spirit Condensed is Salted Stone's Adobe Fonts face; it loads only if
+     the kit allows this domain. Fraunces is the free stand-in. */
+  --font-display: new-spirit-condensed, var(--font-fraunces), Georgia, serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
 body {
-  background: #f8fafc;
-  color: #0f172a;
+  background: var(--color-cream);
+  color: var(--color-ink);
+}
+
+/* Disclosure rows draw their own chevron (components/chevron.tsx). */
+summary {
+  list-style: none;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-ink px-5 py-2.5 font-mono text-xs font-bold tracking-[0.08em] text-ink uppercase transition-colors;
+    @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply bg-orange hover:bg-yellow;
+  }
+  .btn-secondary {
+    @apply bg-paper hover:bg-cream;
+  }
+  .btn-sm {
+    @apply px-3 py-1.5 text-[11px];
+  }
+
+  .card {
+    @apply rounded-xl border border-ink bg-paper;
+  }
+
+  .label {
+    @apply block font-mono text-[11px] font-bold tracking-[0.08em] text-ink uppercase;
+  }
+  .input {
+    @apply block w-full rounded-lg border border-ink bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink/60;
+    @apply focus:ring-2 focus:ring-ink focus:ring-offset-1 focus:ring-offset-cream focus:outline-none;
+  }
+
+  /* Small mono tag, like the topic tags on saltedstone.com posts. */
+  .chip {
+    @apply inline-flex items-center rounded border border-ink px-1.5 py-0.5 font-mono text-[10px] leading-none font-bold tracking-[0.06em] whitespace-nowrap text-ink uppercase;
+  }
+
+  .eyebrow {
+    @apply font-mono text-xs font-bold tracking-[0.1em] text-ink uppercase;
+  }
+
+  .link {
+    @apply underline decoration-1 underline-offset-2 hover:decoration-2;
+  }
 }

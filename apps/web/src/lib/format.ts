@@ -18,13 +18,14 @@ export const SCOPE_HINT: Record<Scope, string> = {
   unknown: "Couldn't locate the element",
 };
 
+// Brand chip colors; text is always ink (>= 5.09:1 on each).
 export const IMPACT_STYLE: Record<Impact | "pass" | "fail", string> = {
-  critical: "bg-red-100 text-red-800 ring-red-200",
-  serious: "bg-orange-100 text-orange-800 ring-orange-200",
-  moderate: "bg-amber-100 text-amber-800 ring-amber-200",
-  minor: "bg-slate-100 text-slate-700 ring-slate-200",
-  pass: "bg-emerald-100 text-emerald-800 ring-emerald-200",
-  fail: "bg-red-100 text-red-800 ring-red-200",
+  critical: "bg-pink",
+  serious: "bg-orange",
+  moderate: "bg-yellow",
+  minor: "bg-tan",
+  pass: "bg-mint",
+  fail: "bg-pink",
 };
 
 export function pathOf(url: string): string {

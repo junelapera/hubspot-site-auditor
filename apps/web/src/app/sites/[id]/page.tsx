@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Badge } from "@/components/badge";
 import { QueueRunButton, SiteSettingsForm } from "@/components/forms";
 import { RunProgress } from "@/components/run-progress";
+import { BackChevron, DisclosureChevron } from "@/components/chevron";
 import { duration, timeAgo } from "@/lib/format";
 import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
@@ -22,11 +23,14 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
   return (
     <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
       <div>
-        <Link href="/" className="text-sm text-slate-600 hover:text-slate-900">← Sites</Link>
+        <Link href="/" className="eyebrow inline-flex items-center gap-1 py-1 hover:underline hover:underline-offset-4">
+          <BackChevron />
+          Sites
+        </Link>
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold text-slate-900">{site.name ?? site.domain}</h1>
-            <a href={`https://${site.domain}`} target="_blank" rel="noreferrer" className="text-sm text-slate-600 underline-offset-2 hover:underline">
+            <h1 className="font-display text-4xl font-medium leading-tight tracking-tight break-words sm:text-5xl">{site.name ?? site.domain}</h1>
+            <a href={`https://${site.domain}`} target="_blank" rel="noreferrer" className="link text-sm text-ink/75">
               {site.domain}
             </a>
           </div>
@@ -35,56 +39,57 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
       </div>
 
       {active && (
-        <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <section className="card p-4">
           <RunProgress key={active.id} initial={active} />
         </section>
       )}
 
-      <details className="group rounded-lg border border-slate-200 bg-white">
-        <summary className="cursor-pointer select-none px-4 py-3 text-sm font-semibold text-slate-900">
-          Scan settings
-          <span className="ml-2 font-normal text-slate-500">
+      <details className="group card">
+        <summary className="flex cursor-pointer select-none flex-wrap items-center gap-x-2 px-4 py-3">
+          <DisclosureChevron />
+          <span className="eyebrow">Scan settings</span>
+          <span className="text-sm text-ink/75">
             up to {site.page_limit} pages
             {site.include_paths.length > 0 && ` · include ${site.include_paths.join(", ")}`}
             {site.exclude_paths.length > 0 && ` · exclude ${site.exclude_paths.join(", ")}`}
           </span>
         </summary>
-        <div className="border-t border-slate-200 p-4">
+        <div className="border-t border-ink/30 p-4">
           <SiteSettingsForm site={site} />
         </div>
       </details>
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <h2 className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900">Scans</h2>
+      <section className="overflow-hidden card">
+        <h2 className="eyebrow border-b border-ink px-4 py-3">Scans</h2>
         {!runs?.length ? (
-          <p className="p-4 text-sm text-slate-600">No scans yet. Click “Run scan” to start one.</p>
+          <p className="p-4 text-sm text-ink/75">No scans yet. Click “Run scan” to start one.</p>
         ) : (
-          <ul className="divide-y divide-slate-100">
+          <ul className="divide-y divide-ink/15">
             {runs.map((run) => (
               <li key={run.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
                 <div className="flex items-center gap-3">
                   {run.status === "done" ? (
-                    <Link href={`/runs/${run.id}`} className="font-medium text-slate-900 underline-offset-2 hover:underline">
+                    <Link href={`/runs/${run.id}`} className="font-medium text-ink underline-offset-2 hover:underline">
                       {new Date(run.created_at).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })}
                     </Link>
                   ) : (
-                    <span className="font-medium text-slate-900">
+                    <span className="font-medium text-ink">
                       {new Date(run.created_at).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })}
                     </span>
                   )}
-                  <span className="text-slate-500">{timeAgo(run.created_at)}</span>
+                  <span className="text-ink/70">{timeAgo(run.created_at)}</span>
                 </div>
-                <div className="flex items-center gap-3 text-slate-700">
+                <div className="flex items-center gap-3 text-ink/85">
                   {run.status === "done" && run.summary && (
                     <>
                       <span>{run.summary.pagesScanned} pages</span>
                       <span>{run.summary.issues} issues</span>
                       <span>{run.summary.imagesFlagged} images</span>
-                      <span className="text-slate-500">{duration(run.summary.durationMs)}</span>
+                      <span className="text-ink/70">{duration(run.summary.durationMs)}</span>
                     </>
                   )}
                   {run.status === "failed" && <Badge tone="fail">Failed</Badge>}
-                  {run.status === "failed" && run.error && <span className="max-w-md truncate text-red-700" title={run.error}>{run.error}</span>}
+                  {run.status === "failed" && run.error && <span className="max-w-md truncate text-rust" title={run.error}>{run.error}</span>}
                   {(run.status === "queued" || run.status === "running") && <Badge tone="minor">{run.status}</Badge>}
                 </div>
               </li>

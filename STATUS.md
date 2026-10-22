@@ -14,6 +14,8 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Web app | Invite-only accounts (@saltedstone.com): members create one-time invite links on the Team page, no email needed; email + password sign-in; sites, run a scan with live progress, report with Modules / Pages / Images / Links / Security tabs and copyable fixes. Deployed to Vercel; pushes to `main` deploy production. "Run scan" in production verified: the worker started 47s after the click. |
 | Worker hosting | GitHub Actions workflow (`scan.yml`): on dispatch, by hand, and every 15 min. Verified from the app's "Run scan" button: a 5-page scan started 42s after the click (Chromium cached) and finished 15s later. Public log shows run IDs only. |
 | CSV exports | Issues (one row per module + rule, Teamwork / Jira columns), images, links, security. Download buttons on every report. Formula-injection safe, UTF-8 BOM for Excel. |
+| Look and feel | Salted Stone brand from saltedstone.com: cream / ink palette, logo and S² favicon, serif headings, mono uppercase labels, orange pill buttons, brand-colored severity chips, chevron icons. Every color pair contrast-checked. |
+| Accessibility of the app itself | axe (WCAG 2.2 AA) passes on all 12 screens. No sideways scrolling down to 320px wide. |
 | Tests | 28 worker + 9 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
@@ -40,6 +42,8 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - **Fix suggestions are stored at scan time.** Changing a template in `apps/worker/src/fixes.ts` only affects new scans.
 - **Worker runs on GitHub Actions, not Railway** (the PRD's choice). It's free on a public repo, at the cost of ~1–2 min startup per scan. Logs are public, so the worker runs with `REDACT_LOGS=1`.
 - **Cache Components is off** in the web app on purpose: every page is per-user live data.
+- **Heading font is a stand-in.** saltedstone.com uses New Spirit Condensed from Salted Stone's Adobe Fonts kit, which only serves allowed domains. The app uses Fraunces until `hubspot-site-auditor.vercel.app` is added to the kit; the CSS already lists New Spirit first.
+- **Brand colors as text:** the brand orange and red fail contrast as text on cream (2.5 / 3.6:1), so chips and buttons always use ink text, and error text uses a darker rust. Tokens and the checked ratios are in `apps/web/src/app/globals.css`.
 - **GitHub dispatch token expires 2027-01-20.** After that, "Run scan" falls back to the 15-minute schedule until a new token is set in `apps/web/.env.local` and Vercel.
 - **Invite links are shared by hand.** Whoever holds an unused link can claim that account, so send them directly, not in shared channels. They expire after 24 hours.
 - **Only "Forgot password?" sends email**, through Supabase's built-in sender (a few per hour, org members only) until custom SMTP is set up. Admin-generated recovery links also start the per-account reset cooldown.

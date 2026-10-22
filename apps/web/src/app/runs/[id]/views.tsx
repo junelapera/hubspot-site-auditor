@@ -1,4 +1,5 @@
 import { Badge } from "@/components/badge";
+import { DisclosureChevron, NextChevron } from "@/components/chevron";
 import { FixPanel } from "@/components/fix-panel";
 import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
@@ -11,20 +12,20 @@ function groupKey(i: { scope: string; module: string | null }) {
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-600">{children}</p>;
+  return <p className="card p-6 text-sm text-ink/75">{children}</p>;
 }
 
 function PageList({ pages, max = 10 }: { pages: string[]; max?: number }) {
   return (
-    <ul className="space-y-0.5 text-xs">
+    <ul className="text-xs">
       {pages.slice(0, max).map((p) => (
         <li key={p}>
-          <a href={p} target="_blank" rel="noreferrer" className="text-slate-700 underline-offset-2 hover:underline">
+          <a href={p} target="_blank" rel="noreferrer" className="inline-block py-1 text-ink/85 underline-offset-2 hover:underline">
             {pathOf(p)}
           </a>
         </li>
       ))}
-      {pages.length > max && <li className="text-slate-500">and {pages.length - max} more</li>}
+      {pages.length > max && <li className="text-ink/70">and {pages.length - max} more</li>}
     </ul>
   );
 }
@@ -47,24 +48,27 @@ export async function ModulesView({ runId }: { runId: string }) {
 
   return (
     <section aria-label="Issues by module" className="space-y-2">
-      <p className="text-sm text-slate-600">Sorted by impact: the first row is the fix that clears the most issues.</p>
+      <p className="text-sm text-ink/75">Sorted by impact: the first row is the fix that clears the most issues.</p>
       {modules.map((m) => {
         const group = (byGroup.get(groupKey(m)) ?? []).sort(
           (a, b) => IMPACT_ORDER[a.impact] - IMPACT_ORDER[b.impact] || b.pages.length - a.pages.length,
         );
         return (
-          <details key={groupKey(m)} className="group rounded-lg border border-slate-200 bg-white">
+          <details key={groupKey(m)} className="group card">
             <summary className="grid cursor-pointer select-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,2fr)_6rem_6rem_7rem_minmax(0,2fr)]">
-              <span>
-                <span className="font-mono text-sm font-medium text-slate-900">{moduleLabel(m.scope, m.module)}</span>
-                <span className="block text-xs text-slate-500">{SCOPE_HINT[m.scope]}</span>
+              <span className="flex items-start gap-2">
+                <DisclosureChevron className="mt-0.5" />
+                <span>
+                  <span className="font-mono text-sm font-medium text-ink">{moduleLabel(m.scope, m.module)}</span>
+                  <span className="block text-xs text-ink/70">{SCOPE_HINT[m.scope]}</span>
+                </span>
               </span>
-              <span className="text-sm text-slate-700">{m.issue_count} {m.issue_count === 1 ? "issue" : "issues"}</span>
+              <span className="text-sm text-ink/85">{m.issue_count} {m.issue_count === 1 ? "issue" : "issues"}</span>
               <span><Badge tone={m.worst_impact}>{m.worst_impact}</Badge></span>
-              <span className="text-sm text-slate-700">{m.pages_affected} {m.pages_affected === 1 ? "page" : "pages"}</span>
-              <span className="truncate text-xs text-slate-500 sm:text-sm" title={m.rules.join(", ")}>{m.rules.join(", ")}</span>
+              <span className="text-sm text-ink/85">{m.pages_affected} {m.pages_affected === 1 ? "page" : "pages"}</span>
+              <span className="truncate text-xs text-ink/70 sm:text-sm" title={m.rules.join(", ")}>{m.rules.join(", ")}</span>
             </summary>
-            <div className="space-y-4 border-t border-slate-200 p-4">
+            <div className="space-y-4 border-t border-ink/30 p-4">
               {group.map((issue) => (
                 <IssueDetail key={issue.id} issue={issue} />
               ))}
@@ -78,20 +82,20 @@ export async function ModulesView({ runId }: { runId: string }) {
 
 function IssueDetail({ issue }: { issue: IssueRow }) {
   return (
-    <article className="space-y-3 rounded-md border border-slate-200 p-3">
+    <article className="space-y-3 rounded-lg border border-ink/30 bg-paper p-3">
       <header className="flex flex-wrap items-center gap-2">
         <Badge tone={issue.impact}>{issue.impact}</Badge>
-        <h3 className="text-sm font-semibold text-slate-900">{issue.help}</h3>
-        <a href={issue.help_url} target="_blank" rel="noreferrer" className="font-mono text-xs text-slate-500 underline">
+        <h3 className="text-sm font-semibold text-ink">{issue.help}</h3>
+        <a href={issue.help_url} target="_blank" rel="noreferrer" className="font-mono text-xs text-ink/70 underline">
           {issue.rule_id}
         </a>
       </header>
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="space-y-2">
-          {issue.path && <p className="font-mono text-xs text-slate-600">{issue.path}</p>}
-          <pre className="overflow-x-auto rounded bg-slate-100 p-2 font-mono text-xs text-slate-800"><code>{issue.html}</code></pre>
+          {issue.path && <p className="font-mono text-xs text-ink/75">{issue.path}</p>}
+          <pre tabIndex={0} aria-label="Failing HTML" className="overflow-x-auto rounded-lg border border-ink/30 bg-cream p-2 font-mono text-xs text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"><code>{issue.html}</code></pre>
           <div>
-            <h4 className="mb-1 text-xs font-medium text-slate-500">Affected pages ({issue.pages.length})</h4>
+            <h4 className="mb-1 text-xs font-medium text-ink/70">Affected pages ({issue.pages.length})</h4>
             <PageList pages={issue.pages} />
           </div>
         </div>
@@ -122,21 +126,24 @@ export async function PagesView({ runId }: { runId: string }) {
   return (
     <section aria-label="Issues by page" className="space-y-2">
       {rows.map(({ page, issues }) => (
-        <details key={page.id} className="rounded-lg border border-slate-200 bg-white">
+        <details key={page.id} className="group card">
           <summary className="flex cursor-pointer select-none flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-            <span className="font-mono text-slate-900">{pathOf(page.url)}</span>
-            <span className="flex items-center gap-2 text-slate-700">
+            <span className="flex items-center gap-2 font-mono text-ink">
+              <DisclosureChevron />
+              {pathOf(page.url)}
+            </span>
+            <span className="flex items-center gap-2 text-ink/85">
               {page.error ? <Badge tone="fail">{page.error}</Badge> : `${issues.length} ${issues.length === 1 ? "issue" : "issues"}`}
               {issues[0] && <Badge tone={issues[0].impact}>{issues[0].impact}</Badge>}
             </span>
           </summary>
           {issues.length > 0 && (
-            <ul className="divide-y divide-slate-100 border-t border-slate-200 text-sm">
+            <ul className="divide-y divide-ink/15 border-t border-ink/30 text-sm">
               {issues.map((i) => (
                 <li key={i.id} className="flex flex-wrap items-center gap-2 px-4 py-2">
                   <Badge tone={i.impact}>{i.impact}</Badge>
-                  <span className="text-slate-900">{i.help}</span>
-                  <span className="font-mono text-xs text-slate-500">in {moduleLabel(i.scope, i.module)}</span>
+                  <span className="text-ink">{i.help}</span>
+                  <span className="font-mono text-xs text-ink/70">in {moduleLabel(i.scope, i.module)}</span>
                 </li>
               ))}
             </ul>
@@ -160,15 +167,16 @@ export async function ImagesView({ runId }: { runId: string }) {
   return (
     <section aria-label="Flagged images" className="space-y-2">
       {sorted.map((img) => (
-        <details key={img.id} className="rounded-lg border border-slate-200 bg-white">
+        <details key={img.id} className="group card">
           <summary className="flex cursor-pointer select-none items-center gap-3 px-4 py-3">
+            <DisclosureChevron />
             {/* eslint-disable-next-line @next/next/no-img-element -- thumbnails of client images; alt is shown beside it */}
-            <img src={img.src} alt="" loading="lazy" className="h-12 w-16 shrink-0 rounded border border-slate-200 bg-slate-50 object-contain" />
+            <img src={img.src} alt="" loading="lazy" className="h-12 w-16 shrink-0 rounded-lg border border-ink bg-cream object-contain" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm text-slate-900">
-                {img.alt === null ? <em className="text-slate-500">No alt attribute</em> : `“${img.alt}”`}
+              <span className="block truncate text-sm text-ink">
+                {img.alt === null ? <em className="text-ink/70">No alt attribute</em> : `“${img.alt}”`}
               </span>
-              <span className="block truncate font-mono text-xs text-slate-500">
+              <span className="block truncate font-mono text-xs text-ink/70">
                 {moduleLabel(img.scope, img.module)} · {img.pages.length} {img.pages.length === 1 ? "page" : "pages"}
               </span>
             </span>
@@ -178,9 +186,9 @@ export async function ImagesView({ runId }: { runId: string }) {
               ))}
             </span>
           </summary>
-          <div className="grid gap-3 border-t border-slate-200 p-4 lg:grid-cols-2">
+          <div className="grid gap-3 border-t border-ink/30 p-4 lg:grid-cols-2">
             <div className="space-y-2">
-              <a href={img.src} target="_blank" rel="noreferrer" className="block break-all font-mono text-xs text-slate-600 underline">
+              <a href={img.src} target="_blank" rel="noreferrer" className="block break-all font-mono text-xs text-ink/75 underline">
                 {img.src}
               </a>
               <PageList pages={img.pages} />
@@ -207,26 +215,34 @@ export async function LinksView({ runId }: { runId: string }) {
   return (
     <section aria-label="Link issues" className="space-y-2">
       {links.map((l) => (
-        <details key={l.id} className="rounded-lg border border-slate-200 bg-white">
+        <details key={l.id} className="group card">
           <summary className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-4 py-3 text-sm">
+            <DisclosureChevron />
             <Badge tone={l.check === "broken" || l.check === "redirect-to-dead" ? "critical" : "moderate"}>
               {LINK_CHECK_LABEL[l.check] ?? l.check}
             </Badge>
-            <span className="min-w-0 flex-1 truncate font-mono text-slate-900">{pathOf(l.url)}</span>
-            <span className="font-mono text-xs text-slate-500">
-              {l.hops.map((h) => h.status).join(" → ") || l.error}
+            <span className="min-w-0 flex-1 truncate font-mono text-ink">{pathOf(l.url)}</span>
+            <span className="flex items-center gap-1 font-mono text-xs text-ink/70">
+              {l.hops.length
+                ? l.hops.map((h, i) => (
+                    <span key={i} className="flex items-center gap-1">
+                      {i > 0 && <NextChevron />}
+                      {h.status}
+                    </span>
+                  ))
+                : l.error}
             </span>
-            <span className="text-xs text-slate-500">{moduleLabel(l.scope, l.module)} · {l.pages.length} {l.pages.length === 1 ? "page" : "pages"}</span>
+            <span className="text-xs text-ink/70">{moduleLabel(l.scope, l.module)} · {l.pages.length} {l.pages.length === 1 ? "page" : "pages"}</span>
           </summary>
-          <div className="grid gap-3 border-t border-slate-200 p-4 lg:grid-cols-2">
+          <div className="grid gap-3 border-t border-ink/30 p-4 lg:grid-cols-2">
             <div className="space-y-2 text-xs">
-              {l.text && <p className="text-slate-700">Link text: “{l.text}”</p>}
-              <ol className="space-y-0.5 font-mono text-slate-600">
+              {l.text && <p className="text-ink/85">Link text: “{l.text}”</p>}
+              <ol className="space-y-0.5 font-mono text-ink/75">
                 {l.hops.map((h, i) => (
                   <li key={i}>{h.status} {pathOf(h.url)}</li>
                 ))}
               </ol>
-              <h4 className="pt-2 font-medium text-slate-500">Found on</h4>
+              <h4 className="pt-2 font-medium text-ink/70">Found on</h4>
               <PageList pages={l.pages} />
             </div>
             <FixPanel fix={l.fix} />
@@ -247,10 +263,10 @@ export async function SecurityView({ runId }: { runId: string }) {
   const sorted = checks.sort((a, b) => Number(a.pass) - Number(b.pass));
   return (
     <section aria-label="Security checks" className="space-y-3">
-      <p className="text-sm text-slate-600">Passive checks only: headers, TLS, and redirects as any browser sees them.</p>
-      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+      <p className="text-sm text-ink/75">Passive checks only: headers, TLS, and redirects as any browser sees them.</p>
+      <div className="overflow-x-auto card">
         <table className="w-full min-w-[44rem] text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-ink bg-cream font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink">
             <tr>
               <th scope="col" className="px-4 py-2 font-medium">Check</th>
               <th scope="col" className="px-4 py-2 font-medium">Result</th>
@@ -259,14 +275,14 @@ export async function SecurityView({ runId }: { runId: string }) {
               <th scope="col" className="px-4 py-2 font-medium">Where to fix</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 align-top">
+          <tbody className="divide-y divide-ink/15 align-top">
             {sorted.map((c) => (
               <tr key={c.id}>
-                <th scope="row" className="px-4 py-3 font-medium text-slate-900">{c.name}</th>
+                <th scope="row" className="px-4 py-3 font-medium text-ink">{c.name}</th>
                 <td className="px-4 py-3"><Badge tone={c.pass ? "pass" : "fail"}>{c.pass ? "Pass" : "Fail"}</Badge></td>
-                <td className="max-w-xs break-words px-4 py-3 font-mono text-xs text-slate-700">{c.current}</td>
-                <td className="max-w-xs break-words px-4 py-3 font-mono text-xs text-slate-700">{c.recommended}</td>
-                <td className="px-4 py-3 text-slate-700">{c.fix_location}</td>
+                <td className="max-w-xs break-words px-4 py-3 font-mono text-xs text-ink/85">{c.current}</td>
+                <td className="max-w-xs break-words px-4 py-3 font-mono text-xs text-ink/85">{c.recommended}</td>
+                <td className="px-4 py-3 text-ink/85">{c.fix_location}</td>
               </tr>
             ))}
           </tbody>

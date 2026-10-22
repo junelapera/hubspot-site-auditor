@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useActionState } from "react";
 import { requestPasswordReset, signIn, type AuthState } from "./actions";
@@ -14,7 +15,7 @@ const COPY: Record<AuthMode, { title: string; intro: string; submit: string; pen
 const ACTIONS = { signin: signIn, forgot: requestPasswordReset };
 
 const input =
-  "mt-1 block w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/20";
+  "input mt-1";
 
 export function AuthForm({ mode, notice }: { mode: AuthMode; notice?: string }) {
   const [state, action, pending] = useActionState<AuthState, FormData>(
@@ -26,19 +27,20 @@ export function AuthForm({ mode, notice }: { mode: AuthMode; notice?: string }) 
 
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-sm">
-        <p className="text-sm font-semibold text-slate-500">HubSpot Site Auditor</p>
-        <h1 className="mt-1 text-xl font-semibold text-slate-900">{copy.title}</h1>
-        <p className="mt-1 text-sm text-slate-600">{copy.intro}</p>
+      <div className="card w-full max-w-md p-8">
+        <Image src="/brand/saltedstone.svg" alt="Salted Stone" width={124} height={36} priority />
+        <p className="eyebrow mt-3">HubSpot Site Auditor</p>
+        <h1 className="mt-6 font-display text-3xl font-medium leading-tight tracking-tight">{copy.title}</h1>
+        <p className="mt-1 text-sm text-ink/75">{copy.intro}</p>
 
         {state.status === "check-email" ? (
-          <div className="mt-6 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" role="status">
+          <div className="mt-6 rounded-xl border border-ink bg-mint/50 p-4 text-sm text-ink" role="status">
             If an account exists for <strong>{state.email}</strong>, we&apos;ve sent a link to reset the password.
           </div>
         ) : (
           <form action={action} className="mt-6 space-y-4" noValidate>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-slate-800">Email</label>
+              <label htmlFor="email" className="label">Email</label>
               <input
                 id="email"
                 name="email"
@@ -56,9 +58,9 @@ export function AuthForm({ mode, notice }: { mode: AuthMode; notice?: string }) 
             {mode !== "forgot" && (
               <div>
                 <div className="flex items-baseline justify-between">
-                  <label htmlFor="password" className="block text-sm font-medium text-slate-800">Password</label>
+                  <label htmlFor="password" className="label">Password</label>
                   {mode === "signin" && (
-                    <Link href="/login?mode=forgot" className="text-xs text-slate-600 underline-offset-2 hover:underline">
+                    <Link href="/login?mode=forgot" className="text-xs text-ink/75 underline-offset-2 hover:underline">
                       Forgot password?
                     </Link>
                   )}
@@ -76,24 +78,24 @@ export function AuthForm({ mode, notice }: { mode: AuthMode; notice?: string }) 
 
 
             {hasError && (
-              <p id="auth-error" className="text-sm text-red-700" role="alert">{state.message}</p>
+              <p id="auth-error" className="text-sm text-rust" role="alert">{state.message}</p>
             )}
 
             <button
               type="submit"
               disabled={pending}
-              className="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900 disabled:opacity-60"
+              className="btn btn-primary w-full"
             >
               {pending ? copy.pending : copy.submit}
             </button>
           </form>
         )}
 
-        <p className="mt-6 text-sm text-slate-600">
+        <p className="mt-6 text-sm text-ink/75">
           {mode === "signin" ? (
             <>No account yet? Ask a teammate to invite you from the Team page.</>
           ) : (
-            <>Have an account? <Link href="/login" className="font-medium text-slate-900 underline-offset-2 hover:underline">Sign in</Link></>
+            <>Have an account? <Link href="/login" className="font-medium text-ink underline-offset-2 hover:underline">Sign in</Link></>
           )}
         </p>
       </div>

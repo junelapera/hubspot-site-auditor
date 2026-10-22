@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { acceptInvite } from "./actions";
 
 export const metadata = { title: "Accept invitation · HubSpot Site Auditor" };
@@ -9,14 +10,15 @@ export default async function AcceptInvitePage({ searchParams }: PageProps<"/acc
 
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-sm">
-        <p className="text-sm font-semibold text-slate-500">HubSpot Site Auditor</p>
+      <div className="card w-full max-w-md p-8">
+        <Image src="/brand/saltedstone.svg" alt="Salted Stone" width={124} height={36} priority />
+        <p className="eyebrow mt-3">HubSpot Site Auditor</p>
         {valid ? (
           <>
-            <h1 className="mt-1 text-xl font-semibold text-slate-900">
+            <h1 className="mt-6 font-display text-3xl font-medium leading-tight tracking-tight">
               {type === "invite" ? "You've been invited" : "Set your password"}
             </h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-ink/75">
               {type === "invite"
                 ? "Accept the invitation, then choose a password for your Salted Stone account."
                 : "Continue to choose a new password for your account."}
@@ -26,7 +28,7 @@ export default async function AcceptInvitePage({ searchParams }: PageProps<"/acc
               <input type="hidden" name="type" value={type} />
               <button
                 type="submit"
-                className="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+                className="btn btn-primary w-full"
               >
                 {type === "invite" ? "Accept invitation" : "Continue"}
               </button>
@@ -34,8 +36,8 @@ export default async function AcceptInvitePage({ searchParams }: PageProps<"/acc
           </>
         ) : (
           <>
-            <h1 className="mt-1 text-xl font-semibold text-slate-900">Invite link not valid</h1>
-            <p className="mt-1 text-sm text-slate-600">Ask a teammate to send you a new invite from the Team page.</p>
+            <h1 className="mt-6 font-display text-3xl font-medium leading-tight tracking-tight">Invite link not valid</h1>
+            <p className="mt-1 text-sm text-ink/75">Ask a teammate to send you a new invite from the Team page.</p>
           </>
         )}
       </div>

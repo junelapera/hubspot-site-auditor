@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { requireUser } from "@/lib/supabase/server";
 import { ResetForm } from "./reset-form";
 
@@ -8,9 +9,10 @@ export default async function ResetPasswordPage() {
   const { user } = await requireUser();
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-16">
-      <div className="w-full max-w-sm">
-        <h1 className="text-xl font-semibold text-slate-900">Set your password</h1>
-        <p className="mt-1 text-sm text-slate-600">For {user.email}</p>
+      <div className="card w-full max-w-md p-8">
+        <Image src="/brand/saltedstone.svg" alt="Salted Stone" width={124} height={36} priority />
+        <h1 className="mt-6 font-display text-3xl font-medium leading-tight tracking-tight">Set your password</h1>
+        <p className="mt-1 text-sm text-ink/75">For {user.email}</p>
         <ResetForm email={user.email ?? ""} />
       </div>
     </main>

@@ -30,29 +30,29 @@ export default async function TeamPage() {
   return (
     <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Team</h1>
-        <p className="mt-1 text-sm text-slate-600">Accounts are invite-only. Anyone on the team can invite a Salted Stone colleague.</p>
+        <h1 className="font-display text-4xl font-medium leading-tight tracking-tight break-words sm:text-5xl">Team</h1>
+        <p className="mt-1 text-sm text-ink/75">Accounts are invite-only. Anyone on the team can invite a Salted Stone colleague.</p>
       </div>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Invite a teammate</h2>
+      <section className="card p-4">
+        <h2 className="eyebrow mb-3">Invite a teammate</h2>
         <InviteForm />
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <h2 className="border-b border-slate-200 px-4 py-3 text-sm font-semibold text-slate-900">Members ({members.length})</h2>
-        <ul className="divide-y divide-slate-100">
+      <section className="overflow-hidden card">
+        <h2 className="eyebrow border-b border-ink px-4 py-3">Members ({members.length})</h2>
+        <ul className="divide-y divide-ink/15">
           {members.map((m) => (
             <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-              <span className="text-slate-900">
+              <span className="text-ink">
                 {m.email}
-                {m.id === user.id && <span className="ml-2 text-xs text-slate-500">(you)</span>}
+                {m.id === user.id && <span className="ml-2 text-xs text-ink/70">(you)</span>}
               </span>
-              <span className="text-slate-600">
+              <span className="text-ink/75">
                 {m.status === "Active" ? (
                   <>Last signed in {timeAgo(m.lastSignIn!)}</>
                 ) : (
-                  <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-900">
+                  <span className="chip bg-yellow">
                     Invited {timeAgo(m.invitedAt)} · not accepted yet
                   </span>
                 )}

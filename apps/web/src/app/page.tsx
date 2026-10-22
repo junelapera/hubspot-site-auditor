@@ -21,21 +21,21 @@ export default async function HomePage() {
   return (
     <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8">
       <section>
-        <h1 className="text-2xl font-semibold text-slate-900">Sites</h1>
-        <p className="mt-1 text-sm text-slate-600">Scan a HubSpot site to get its issues grouped by module.</p>
+        <h1 className="font-display text-4xl font-medium leading-tight tracking-tight break-words sm:text-5xl">Sites</h1>
+        <p className="mt-1 text-sm text-ink/75">Scan a HubSpot site to get its issues grouped by module.</p>
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">Add a site</h2>
+      <section className="card p-4">
+        <h2 className="eyebrow mb-3">Add a site</h2>
         <AddSiteForm />
       </section>
 
-      <section className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <section className="overflow-hidden card">
         {sites.length === 0 ? (
-          <p className="p-6 text-sm text-slate-600">No sites yet. Add one above.</p>
+          <p className="p-6 text-sm text-ink/75">No sites yet. Add one above.</p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-ink bg-cream font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink">
               <tr>
                 <th scope="col" className="px-4 py-2 font-medium">Site</th>
                 <th scope="col" className="px-4 py-2 font-medium">Last scan</th>
@@ -43,28 +43,28 @@ export default async function HomePage() {
                 <th scope="col" className="px-4 py-2 font-medium">Security</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-ink/15">
               {sites.map((site) => {
                 const run = site.runs[0];
                 return (
-                  <tr key={site.id} className="hover:bg-slate-50">
+                  <tr key={site.id} className="hover:bg-cream">
                     <td className="px-4 py-3">
-                      <Link href={`/sites/${site.id}`} className="font-medium text-slate-900 underline-offset-2 hover:underline">
+                      <Link href={`/sites/${site.id}`} className="font-medium text-ink underline-offset-2 hover:underline">
                         {site.name ?? site.domain}
                       </Link>
-                      {site.name && <div className="text-xs text-slate-500">{site.domain}</div>}
+                      {site.name && <div className="text-xs text-ink/70">{site.domain}</div>}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-ink/75">
                       {run ? (
                         <>
                           {timeAgo(run.created_at)}
-                          {run.status !== "done" && <span className="ml-2 text-xs text-slate-500">({run.status})</span>}
+                          {run.status !== "done" && <span className="ml-2 text-xs text-ink/70">({run.status})</span>}
                         </>
                       ) : (
                         "Never"
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-700">
+                    <td className="px-4 py-3 text-ink/85">
                       {run?.summary ? `${run.summary.issues} in ${run.summary.modules} groups` : "—"}
                     </td>
                     <td className="px-4 py-3">

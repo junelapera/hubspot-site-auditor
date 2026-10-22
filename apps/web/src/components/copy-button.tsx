@@ -12,7 +12,7 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
       }}
-      className="rounded border border-slate-300 bg-white px-2 py-0.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+      className={`btn btn-sm shrink-0 ${copied ? "bg-mint" : "btn-secondary"}`}
     >
       <span aria-live="polite">{copied ? "Copied" : label}</span>
     </button>

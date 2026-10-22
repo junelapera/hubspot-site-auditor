@@ -131,6 +131,15 @@ GitHub disables scheduled workflows after 60 days without repo activity. Dispatc
 
 For local development, run `pnpm worker` instead. It polls every 5 seconds.
 
+## Design
+
+The web app follows the Salted Stone look from saltedstone.com. Brand tokens (colors, fonts) and shared component classes (`btn`, `card`, `input`, `label`, `chip`, `eyebrow`) live in [`apps/web/src/app/globals.css`](apps/web/src/app/globals.css), with contrast ratios noted. Rules:
+
+- Text on any brand color is ink; brand orange and red are never used as text on cream.
+- Focus rings are ink.
+- Icons come from `lucide-react` (chevrons in `apps/web/src/components/chevron.tsx`), not text arrows.
+- Headings use New Spirit Condensed when the Adobe Fonts kit allows the domain, otherwise Fraunces.
+
 ### Checks
 
 ```bash

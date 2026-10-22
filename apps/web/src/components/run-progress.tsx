@@ -39,23 +39,23 @@ export function RunProgress({ initial }: { initial: Progress }) {
 
   if (run.status === "queued") {
     return (
-      <p className="text-sm text-slate-600" role="status">
+      <p className="text-sm text-ink/75" role="status">
         Queued — waiting for the scanner to start. This usually takes 1–2 minutes.
       </p>
     );
   }
   // Shown briefly between the poll seeing the end and the page refresh arriving.
   if (run.status === "done") {
-    return <p className="text-sm text-slate-700" role="status">Scan finished — loading results…</p>;
+    return <p className="text-sm text-ink/85" role="status">Scan finished — loading results…</p>;
   }
   if (run.status === "failed") {
-    return <p className="text-sm text-red-700" role="alert">Scan failed: {run.error ?? "unknown error"}</p>;
+    return <p className="text-sm text-rust" role="alert">Scan failed: {run.error ?? "unknown error"}</p>;
   }
 
   const pct = run.pages_total ? Math.round((run.pages_done / run.pages_total) * 100) : 0;
   return (
     <div role="status" aria-live="polite" className="space-y-1">
-      <div className="flex justify-between text-sm text-slate-700">
+      <div className="flex justify-between font-mono text-xs font-bold tracking-[0.06em] uppercase">
         <span>{STAGE_LABEL[run.stage ?? ""] ?? "Working"}…</span>
         {run.pages_total ? (
           <span>
@@ -63,8 +63,8 @@ export function RunProgress({ initial }: { initial: Progress }) {
           </span>
         ) : null}
       </div>
-      <div className="h-2 overflow-hidden rounded bg-slate-200" aria-hidden="true">
-        <div className="h-full bg-slate-900 transition-all" style={{ width: `${run.stage === "scan" ? pct : run.stage === "crawl" ? 2 : 100}%` }} />
+      <div className="h-3 overflow-hidden rounded-full border border-ink bg-paper" aria-hidden="true">
+        <div className="h-full bg-ink transition-all" style={{ width: `${run.stage === "scan" ? pct : run.stage === "crawl" ? 2 : 100}%` }} />
       </div>
     </div>
   );
