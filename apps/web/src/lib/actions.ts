@@ -60,7 +60,7 @@ export async function updateSiteSettings(siteId: string, _prev: FormState, formD
   return {};
 }
 
-type RunOptions = { urls?: string[]; extraUrls?: string[] };
+type RunOptions = { urls?: string[]; extraUrls?: string[]; sample?: boolean };
 
 async function insertRun(siteId: string, options: RunOptions = {}): Promise<FormState> {
   const { supabase } = await requireUser();
@@ -83,6 +83,11 @@ async function insertRun(siteId: string, options: RunOptions = {}): Promise<Form
 
 export async function queueRun(siteId: string): Promise<FormState> {
   return insertRun(siteId);
+}
+
+/** Read every page, then scan only enough pages to cover every module (up to the page limit). */
+export async function queueSampledRun(siteId: string): Promise<FormState> {
+  return insertRun(siteId, { sample: true });
 }
 
 /** The pasted text and mode come back with an error, so the form can show them again after React resets it. */

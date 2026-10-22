@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { addSite, queueListedRun, queueRun, updateSiteSettings, type FormState, type ListedRunState } from "@/lib/actions";
+import { addSite, queueListedRun, queueRun, queueSampledRun, updateSiteSettings, type FormState, type ListedRunState } from "@/lib/actions";
 import { MAX_LISTED_URLS } from "@/lib/url-list";
 import type { Site } from "@/lib/types";
 
@@ -34,13 +34,28 @@ export function AddSiteForm() {
 
 export function QueueRunButton({ siteId, disabled }: { siteId: string; disabled?: boolean }) {
   const [state, action, pending] = useActionState(() => queueRun(siteId), {});
+  const [sampleState, sampleAction, samplePending] = useActionState(() => queueSampledRun(siteId), {});
+  const busy = pending || samplePending || disabled;
   return (
-    <form action={action} className="flex flex-col items-end gap-1">
-      <button type="submit" disabled={pending || disabled} className="btn btn-primary">
-        {pending ? "Queuing…" : "Run scan"}
-      </button>
+    <div className="flex flex-col items-start gap-1 sm:items-end">
+      <div className="flex flex-wrap gap-2">
+        <form action={sampleAction}>
+          <button type="submit" disabled={busy} aria-describedby="sample-help" className="btn btn-secondary">
+            {samplePending ? "Queuing…" : "Sampled scan"}
+          </button>
+        </form>
+        <form action={action}>
+          <button type="submit" disabled={busy} className="btn btn-primary">
+            {pending ? "Queuing…" : "Run scan"}
+          </button>
+        </form>
+      </div>
+      <p id="sample-help" className="max-w-xs text-xs text-ink/70 sm:text-right">
+        Sampled: reads every page, then scans only enough to cover every module.
+      </p>
       <ErrorText state={state} id="queue-error" />
-    </form>
+      <ErrorText state={sampleState} id="sample-error" />
+    </div>
   );
 }
 

@@ -1,6 +1,6 @@
 # Phase 2 — Re-scans and File Manager
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links, anchors, WCAG view, form check, and URL lists done · Depends on: [Phase 1](phase-1-mvp.md)
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links, anchors, WCAG view, form check, URL lists, and sampling done · Depends on: [Phase 1](phase-1-mvp.md)
 
 ## Goal
 
@@ -85,7 +85,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 ### 7. Scan options
 
 - [ ] Mobile-width scan alongside desktop; issues tagged by viewport, deduped across both
-- [ ] Sampling mode: one page per template for a fast first pass on large sites
+- [x] Sampling mode: one page per template for a fast first pass on large sites (built as "fewest pages that cover every module": drag-and-drop pages share a template but not modules)
 - [x] Paste a URL list instead of the sitemap, or add URLs the sitemap misses *
 
 ### 8. Views
@@ -103,7 +103,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 - [ ] Missing-redirect CSV imports into HubSpot's bulk redirect tool without edits
 - [ ] After a test migration, **zero** old URLs are left without a redirect at launch
 - [ ] External link checker stays within the per-domain rate limit (no bans from common sites)
-- [ ] Sampling mode returns a module list for a 1,000+ page site in under 15 minutes
+- [ ] Sampling mode returns a module list for a 1,000+ page site in under 15 minutes (estimate: reading pages runs at ~2.7/s, so ~6 min for 1,000 pages plus the scan; needs a 1,000+ page site to confirm)
 
 ## Risks to watch
 

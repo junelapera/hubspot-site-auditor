@@ -24,7 +24,7 @@ const REDACT = process.env.REDACT_LOGS === "1";
 interface Run {
   id: string;
   site_id: string;
-  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[]; extraUrls?: string[] };
+  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[]; extraUrls?: string[]; sample?: boolean };
 }
 
 let stopping = false;
@@ -61,14 +61,17 @@ async function processRun(run: Run) {
         domain: site.domain,
         urls: run.options.urls,
         extraUrls: run.options.extraUrls,
+        sample: run.options.sample,
         include: run.options.include ?? site.include_paths,
         exclude: run.options.exclude ?? site.exclude_paths,
         limit: run.options.limit ?? site.page_limit,
       },
       {
-        onUrls: (urls) => update(run.id, { stage: "scan", pages_total: urls.length }),
+        onUrls: (urls) => update(run.id, { stage: "scan", pages_total: urls.length, pages_done: 0 }),
         onPage: (_, done) => update(run.id, { pages_done: done }),
         onStage: (stage) => update(run.id, { stage }),
+        // Throttled: one progress write per 20 pages read.
+        onSampleProgress: (done, total) => (done % 20 === 0 || done === total ? update(run.id, { pages_done: done, pages_total: total }) : undefined),
       },
     );
     await update(run.id, { stage: "save" });

@@ -49,6 +49,8 @@ export interface RunSummary {
   jsLibrariesVulnerable?: number | null;
   forms?: number;
   formIssues?: number;
+  /** Sampled scans: sitemap pages, pages read, modules found and covered. */
+  sample?: { discovered: number; fetched: number; modules: number; covered: number } | null;
 }
 
 export interface Run {
@@ -56,7 +58,7 @@ export interface Run {
   site_id: string;
   status: RunStatus;
   /** Crawl settings at queue time; urls / extraUrls for a pasted page list. */
-  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[]; extraUrls?: string[] };
+  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[]; extraUrls?: string[]; sample?: boolean };
   stage: string | null;
   pages_total: number | null;
   pages_done: number;

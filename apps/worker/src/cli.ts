@@ -1,4 +1,4 @@
-// Local scan without Supabase: pnpm scan <domain> [--limit 20] [--include "/a/**"] [--exclude "/blog/page/**"] [--urls u1,u2] [--extra-urls u1,u2]
+// Local scan without Supabase: pnpm scan <domain> [--limit 20] [--include "/a/**"] [--exclude "/blog/page/**"] [--urls u1,u2] [--extra-urls u1,u2] [--sample]
 import { mkdirSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { moduleLabel } from "./aggregate.js";
@@ -12,6 +12,7 @@ const { values, positionals } = parseArgs({
     exclude: { type: "string", multiple: true },
     urls: { type: "string" },
     "extra-urls": { type: "string" },
+    sample: { type: "boolean", default: false },
     concurrency: { type: "string", default: "3" },
   },
 });
@@ -27,6 +28,7 @@ const result = await runAudit(
     domain,
     urls: values.urls?.split(",").map((u) => u.trim()),
     extraUrls: values["extra-urls"]?.split(",").map((u) => u.trim()),
+    sample: values.sample,
     include: values.include,
     exclude: values.exclude,
     limit: Number(values.limit),
@@ -36,13 +38,17 @@ const result = await runAudit(
     onUrls: (urls) => console.log(`Scanning ${urls.length} pages…`),
     onPage: (r, done, total) =>
       console.log(`  [${done}/${total}] ${r.error ? "ERROR " + r.error.split("\n")[0] : r.findings.length + " findings"}  ${r.url}`),
-    onStage: (stage) => console.log(`Checking ${stage}…`),
+    onStage: (stage) => console.log(stage === "sample" ? "Reading pages to pick a sample…" : `Checking ${stage}…`),
   },
 );
 
 const { stats, modules, issues, images, links, security, mixedContent, scripts, libraries, forms } = result;
 console.log(`\n${stats.rawFindings} page-level findings → ${issues.length} unique issues in ${modules.length} groups`);
 const secs = (ms: number) => `${(ms / 1000).toFixed(0)}s`;
+if (stats.sample) {
+  const s = stats.sample;
+  console.log(`Sampled ${stats.pagesScanned + stats.pagesFailed} of ${s.discovered} pages (read ${s.fetched}), covering ${s.covered} of ${s.modules} modules`);
+}
 console.log(
   `Named module rate: ${(stats.namedModuleRate * 100).toFixed(0)}%  ·  ${secs(stats.durationMs)} ` +
     `(crawl ${secs(stats.stageMs.crawl)}, scan ${secs(stats.stageMs.scan)}, links ${secs(stats.stageMs.links)}, security ${secs(stats.stageMs.security)})\n`,

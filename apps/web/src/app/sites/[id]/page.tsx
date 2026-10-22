@@ -97,6 +97,10 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
                     <span className="chip bg-paper">{run.options.urls.length} listed {run.options.urls.length === 1 ? "page" : "pages"}</span>
                   ) : run.options?.extraUrls?.length ? (
                     <span className="chip bg-paper">Sitemap + {run.options.extraUrls.length} listed</span>
+                  ) : run.options?.sample ? (
+                    <span className="chip bg-paper">
+                      Sampled{run.summary?.sample ? ` · ${run.summary.sample.covered} of ${run.summary.sample.modules} modules` : ""}
+                    </span>
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink/85">

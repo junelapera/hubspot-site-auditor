@@ -23,6 +23,7 @@ import {
   suggestSecurityFix,
   type FixSuggestion,
 } from "./fixes.js";
+import { samplePages, type SampleResult } from "./sample.js";
 import { scanPages } from "./scan.js";
 import type { Issue, ModuleSummary, PageResult } from "./types.js";
 
@@ -32,13 +33,17 @@ export interface AuditInput extends CrawlOptions {
   urls?: string[];
   /** Scan these pages as well as the sitemap's. */
   extraUrls?: string[];
+  /** Read every sitemap page's HTML, then scan only enough pages to cover every module (up to limit). */
+  sample?: boolean;
   concurrency?: number;
 }
 
 export interface AuditHooks {
   onUrls?: (urls: string[]) => void | Promise<void>;
   onPage?: (page: PageResult, done: number, total: number) => void | Promise<void>;
-  onStage?: (stage: "links" | "security") => void | Promise<void>;
+  onStage?: (stage: "sample" | "links" | "security") => void | Promise<void>;
+  /** Pages read so far while sampling. */
+  onSampleProgress?: (done: number, total: number) => void | Promise<void>;
 }
 
 export interface AuditResult {
@@ -66,6 +71,8 @@ export interface AuditResult {
     namedModuleRate: number;
     durationMs: number;
     stageMs: { crawl: number; scan: number; links: number; security: number };
+    /** Sampling mode: sitemap pages, pages read, modules found and covered. Null for a normal scan. */
+    sample: Omit<SampleResult, "urls"> | null;
   };
 }
 
@@ -84,11 +91,18 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
 
   const filters = { include: input.include, exclude: input.exclude, limit: input.limit };
   let crawl: { urls: string[]; sitemapUrls: string[] };
+  let sample: SampleResult | null = null;
   if (input.urls?.length) {
     // Only the listed pages. The sitemap is still read (not scanned) when there's a domain,
     // so the link check can skip pages known to be live instead of requesting every link.
     const sitemap = input.domain ? await crawlSitemap(input.domain).catch(() => null) : null;
     crawl = { urls: unique(input.urls), sitemapUrls: sitemap?.sitemapUrls ?? [] };
+  } else if (input.sample) {
+    // The page limit caps the pages scanned, not the pages read for sampling.
+    const full = await crawlSitemap(input.domain!, { ...filters, limit: undefined });
+    await hooks.onStage?.("sample");
+    sample = await samplePages(full.urls, { limit: input.limit ?? 200, onProgress: hooks.onSampleProgress });
+    crawl = { ...full, urls: sample.urls };
   } else {
     crawl = await crawlSitemap(input.domain!, filters);
     // Pages the sitemap misses, scanned on top of it (outside the page limit and path filters).
@@ -152,6 +166,7 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
       namedModuleRate: namedModuleRate(issues),
       durationMs: Date.now() - started,
       stageMs: { crawl: crawlMs, scan: scanMs, links: linksMs, security: securityMs },
+      sample: sample && { discovered: sample.discovered, fetched: sample.fetched, modules: sample.modules, covered: sample.covered },
     },
   };
 }

@@ -80,6 +80,15 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
           <LocalTime iso={run.created_at} />
           {s && ` · took ${duration(s.durationMs)}`} · Automated, passive scan — not a full accessibility or security audit.
         </p>
+        {s?.sample && (
+          <p className="mt-2 text-sm text-ink/85">
+            <span className="chip mr-2 bg-paper">Sampled</span>
+            {s.pagesScanned + s.pagesFailed} of {s.sample.discovered} pages scanned, chosen to cover {s.sample.covered} of the{" "}
+            {s.sample.modules} modules found on the site
+            {s.sample.covered < s.sample.modules && " (raise the page limit to cover the rest)"}. Issues are listed for the scanned
+            pages only; the same module usually has them on other pages too.
+          </p>
+        )}
       </div>
 
       {run.status !== "done" ? (
