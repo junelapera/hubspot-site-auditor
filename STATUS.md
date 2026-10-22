@@ -30,6 +30,13 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 
 Only one site has been scanned so far. The acceptance criteria call for 3 real client sites.
 
+## Pick up here (end of Oct 22)
+
+- Production is current: https://hubspot-site-auditor.vercel.app (latest: dates in the viewer's time zone; brand dropdown on the compare page; scan comparison and won't-fix marking).
+- Local: `pnpm dev` (web on :3000) and, optionally, `pnpm worker`. If CSS looks stale after a `pnpm build`, stop the dev server, delete `apps/web/.next`, and start it again.
+- Waiting on: 3 client domains (and SecurityScorecard reports if available) for the Phase 1 acceptance runs.
+- Ready to start without input: per-scan accessibility score and A–F security grade (Phase 2 item marked *).
+
 ## Next
 
 1. **Acceptance runs** on 3 client sites (ideally different themes): named-module rate (90%+), alt-text false positives (under 10%), a SecurityScorecard comparison (90%+ match), a 200-page timing (under 15 min), and a test import of the issues CSV into Teamwork. Needs: the 3 domains, and SecurityScorecard reports if available.
