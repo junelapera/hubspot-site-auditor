@@ -32,7 +32,7 @@ By the end of this phase, a developer can enter a domain, run a scan, and get a 
 
 ### 0. Foundation
 
-- [x] Next.js + Tailwind app (email + password sign-up limited to @saltedstone.com, password reset, sites, queue a scan with live progress, report views), deployed to Vercel at https://hubspot-site-auditor.vercel.app
+- [x] Next.js + Tailwind app (invite-only accounts limited to @saltedstone.com, email + password sign-in, password reset, sites, queue a scan with live progress, report views), deployed to Vercel at https://hubspot-site-auditor.vercel.app
 - [x] Supabase project: auth, and tables for `sites`, `runs`, `pages`, `issues` (affected pages stored on each issue), `images`, `links`, `security_checks` — applied to project `tikwmidmueieicuyqsem`; sign-up and data access limited to @saltedstone.com
 - [x] Job queue: `runs` table with a status column (`queued` → `running` → `done` / `failed`), polled by the worker
 - [x] Worker: Node.js + Playwright + `@axe-core/playwright`, processing runs from the live queue; hosted on GitHub Actions (`.github/workflows/scan.yml`) instead of Railway/Fly.io, so it's free on the public repo

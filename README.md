@@ -78,9 +78,10 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-Sign-up and data access are limited to one email domain, set in
-`supabase/migrations/20261022000100_restrict_to_agency_domain.sql` and
-`apps/web/src/app/login/actions.ts`. Change both to use your own domain. Keep email confirmation on in Supabase Auth, otherwise anyone can claim an address on that domain.
+Accounts are **invite-only** and limited to one email domain, set in
+`supabase/migrations/20261022000100_restrict_to_agency_domain.sql` and `apps/web/src/lib/auth.ts`. Change both to use your own domain. In Supabase Auth, turn off **Allow new users to sign up**; members invite teammates from the app's Team page, which makes a one-time link to share (no email needed).
+
+The first account has to be created by hand: use **Authentication → Users → Add user** in the Supabase dashboard (with a password and "Auto confirm").
 
 In the Supabase dashboard under **Authentication → URL Configuration**, set the Site URL to `http://localhost:3000` and add `http://localhost:3000/auth/callback` to the redirect URLs.
 
@@ -88,10 +89,10 @@ In the Supabase dashboard under **Authentication → URL Configuration**, set th
 
 ```bash
 cp apps/worker/.env.example apps/worker/.env      # SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
-cp apps/web/.env.example apps/web/.env.local      # NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+cp apps/web/.env.example apps/web/.env.local      # NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY
 ```
 
-The service role key goes **only** in the worker's env. The web app uses the public anon key and each user's session, so row-level security applies.
+The web app reads data with the public anon key and each user's session, so row-level security applies. It also needs the service role key, server-side only, to create invites and list the team.
 
 ## Running
 
@@ -113,7 +114,7 @@ Keep `--limit` small while developing. HubSpot's Cloudflare edge rate-limits qui
 
 | Part | Where | How |
 | --- | --- | --- |
-| Web app | Vercel | Import the repo, set Root Directory to `apps/web`, add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `GITHUB_DISPATCH_TOKEN` (sensitive), and `GITHUB_REPOSITORY` |
+| Web app | Vercel | Import the repo, set Root Directory to `apps/web`, add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (sensitive), `GITHUB_DISPATCH_TOKEN` (sensitive), and `GITHUB_REPOSITORY` |
 | Worker | GitHub Actions | [`.github/workflows/scan.yml`](.github/workflows/scan.yml) drains the queue and exits |
 | Database + auth | Supabase | `npx supabase db push` |
 

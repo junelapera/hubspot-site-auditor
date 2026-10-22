@@ -49,7 +49,9 @@ Run `pnpm test` and `pnpm typecheck` before saying a change is done. For web cha
 - `params` and `searchParams` are Promises. Use the global `PageProps<"/route">` / `LayoutProps<"/">` types.
 - **Cache Components is off on purpose** (`next.config.ts`): every page is per-user live data. Don't turn it on without adding Suspense boundaries around every session read.
 - A `"use server"` file may only export async functions. Exporting a constant breaks the build with "module has no exports".
-- Server code reads data through `createClient()` / `requireUser()` from `@/lib/supabase/server`, as the signed-in user. Never use the service role key in the web app.
+- Server code reads data through `createClient()` / `requireUser()` from `@/lib/supabase/server`, as the signed-in user, so RLS applies.
+- The service role key is used in the web app **only** through `createAdminClient()` (`@/lib/supabase/admin`), for user admin: invites and the team list. Call it after `requireUser()` plus an `isAgencyEmail()` check. Never use it for table data, and never give it a `NEXT_PUBLIC_` name.
+- **Accounts are invite-only.** Public sign-up is off; invites are one-time links shown to the inviter (no email). `/accept-invite` must only use the token on the button's POST, never on GET, because chat apps fetch links to build previews.
 - `apps/web/src/lib/types.ts` mirrors the database by hand. Update it when a migration changes a table.
 - UI is a light theme with Tailwind. Keep it accessible (labels, focus styles, `role="status"` / `role="alert"`); this is an accessibility tool.
 

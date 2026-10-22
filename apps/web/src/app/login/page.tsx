@@ -2,7 +2,7 @@ import { AuthForm, type AuthMode } from "./login-form";
 
 export const metadata = { title: "Sign in · HubSpot Site Auditor" };
 
-const MODES: AuthMode[] = ["signin", "signup", "forgot"];
+const MODES: AuthMode[] = ["signin", "forgot"];
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { mode, error } = await searchParams;

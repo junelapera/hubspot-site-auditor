@@ -36,9 +36,14 @@ async function Header() {
   return (
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/" className="text-sm font-semibold text-slate-900 hover:text-slate-600">
-          HubSpot Site Auditor
-        </Link>
+        <nav aria-label="Main" className="flex items-center gap-4">
+          <Link href="/" className="text-sm font-semibold text-slate-900 hover:text-slate-600">
+            HubSpot Site Auditor
+          </Link>
+          <Link href="/team" className="text-sm text-slate-600 hover:text-slate-900">
+            Team
+          </Link>
+        </nav>
         <div className="flex items-center gap-3 text-sm text-slate-600">
           <span className="hidden sm:inline">{data.user.email}</span>
           <form action="/auth/signout" method="post">
