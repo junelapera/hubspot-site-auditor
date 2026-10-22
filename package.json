@@ -1,8 +1,14 @@
 {
   "name": "hubspot-site-auditor",
   "private": true,
+  "packageManager": "pnpm@12.8.1",
   "scripts": {
+    "dev": "pnpm --filter web dev",
+    "worker": "pnpm --filter worker start",
     "scan": "pnpm --filter worker scan",
-    "typecheck": "pnpm -r typecheck"
+    "test": "pnpm --filter worker test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm --filter web lint",
+    "build": "pnpm --filter web build"
   }
 }

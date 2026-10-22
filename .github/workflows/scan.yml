@@ -1,0 +1,80 @@
+# Scan worker on GitHub Actions: drains the Supabase run queue, then exits.
+#
+# Started by the web app's "Run scan" button (workflow_dispatch via the API),
+# by hand from the Actions tab, and every 15 minutes as a fallback in case a
+# dispatch was missed or a scan was interrupted.
+#
+# This repo is public, so these logs are public. The worker runs with
+# REDACT_LOGS=1 and prints run IDs only; full errors are saved on the run row.
+name: Scan worker
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  check-queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      has_work: ${{ steps.check.outputs.has_work }}
+    steps:
+      - id: check
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          # Queued runs, or running ones whose worker stopped heartbeating (claim_run re-queues those).
+          stale=$(date -u -d '10 minutes ago' +%Y-%m-%dT%H:%M:%SZ)
+          count=$(curl -sf "$SUPABASE_URL/rest/v1/runs?select=id&limit=1&or=(status.eq.queued,and(status.eq.running,heartbeat_at.lt.$stale))" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" | jq length)
+          echo "Runs waiting: $count"
+          echo "has_work=$([ "$count" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  scan:
+    needs: check-queue
+    if: needs.check-queue.outputs.has_work == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # One worker at a time; a dispatch that arrives mid-scan waits, then drains whatever is left.
+    concurrency:
+      group: scan-worker
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile --filter worker
+
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Chromium
+        if: steps.pw-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter worker exec playwright install --with-deps chromium
+
+      - name: Install Chromium system deps
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter worker exec playwright install-deps chromium
+
+      - name: Drain the scan queue
+        run: pnpm --filter worker start:once
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WORKER_ID: gha-${{ github.run_id }}
+          REDACT_LOGS: "1"

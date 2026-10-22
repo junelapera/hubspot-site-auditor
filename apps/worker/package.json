@@ -5,6 +5,7 @@
   "scripts": {
     "scan": "tsx src/cli.ts",
     "start": "tsx --env-file-if-exists=.env src/worker.ts",
+    "start:once": "tsx --env-file-if-exists=.env src/worker.ts --once",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts"
   },

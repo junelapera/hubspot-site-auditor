@@ -1,5 +1,6 @@
 // Queue worker: polls Supabase for queued runs, runs the audit, writes results back.
-// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, optional WORKER_ID, POLL_INTERVAL_MS.
+// Env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, optional WORKER_ID, POLL_INTERVAL_MS, REDACT_LOGS.
+// --once: drain the queue and exit instead of polling (used by the GitHub Actions workflow).
 import { hostname } from "node:os";
 import { createClient } from "@supabase/supabase-js";
 import { runAudit, type AuditResult } from "./pipeline.js";
@@ -12,9 +13,13 @@ if (!url || !key) {
 }
 
 const db = createClient(url, key, { auth: { persistSession: false } });
-const WORKER_ID = process.env.WORKER_ID ?? `${hostname()}-${process.pid}`;
-const POLL_MS = Number(process.env.POLL_INTERVAL_MS ?? 5_000);
+const WORKER_ID = process.env.WORKER_ID || `${hostname()}-${process.pid}`;
+const POLL_MS = Number(process.env.POLL_INTERVAL_MS || 5_000);
 const INSERT_BATCH = 500;
+const ONCE = process.argv.includes("--once");
+// Actions logs on a public repo are public: log run IDs only, never domains,
+// URLs, or error text. Full errors are still saved on the run row.
+const REDACT = process.env.REDACT_LOGS === "1";
 
 interface Run {
   id: string;
@@ -26,18 +31,20 @@ let stopping = false;
 process.on("SIGTERM", () => (stopping = true));
 process.on("SIGINT", () => (stopping = true));
 
-console.log(`Worker ${WORKER_ID} polling every ${POLL_MS}ms`);
+console.log(ONCE ? `Worker ${WORKER_ID} draining the queue` : `Worker ${WORKER_ID} polling every ${POLL_MS}ms`);
 while (!stopping) {
   const { data, error } = await db.rpc("claim_run", { p_worker_id: WORKER_ID });
   if (error) {
-    console.error("claim_run failed:", error.message);
+    console.error("claim_run failed:", REDACT ? error.code : error.message);
+    if (ONCE) process.exitCode = 1;
   } else if (data?.length) {
     await processRun(data[0] as Run);
     continue; // check for more work straight away
   }
+  if (ONCE) break;
   await new Promise((r) => setTimeout(r, POLL_MS));
 }
-console.log("Worker stopped");
+console.log(ONCE ? "Queue empty, exiting" : "Worker stopped");
 
 async function processRun(run: Run) {
   console.log(`Run ${run.id}: starting`);
@@ -90,11 +97,11 @@ async function update(runId: string, fields: Record<string, unknown>) {
     .from("runs")
     .update({ ...fields, heartbeat_at: new Date().toISOString() })
     .eq("id", runId);
-  if (error) console.error(`Run ${runId}: update failed:`, error.message);
+  if (error) console.error(`Run ${runId}: update failed:`, REDACT ? error.code : error.message);
 }
 
 async function fail(runId: string, message: string) {
-  console.error(`Run ${runId}: failed — ${message}`);
+  console.error(REDACT ? `Run ${runId}: failed (error saved on the run)` : `Run ${runId}: failed — ${message}`);
   await update(runId, { status: "failed", stage: null, error: message, finished_at: new Date().toISOString() });
 }
 

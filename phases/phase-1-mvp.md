@@ -35,7 +35,7 @@ By the end of this phase, a developer can enter a domain, run a scan, and get a 
 - [~] Next.js + Tailwind app built (magic-link login limited to @saltedstone.com, sites, queue a scan with live progress, report views); not yet deployed to Vercel
 - [x] Supabase project: auth, and tables for `sites`, `runs`, `pages`, `issues` (affected pages stored on each issue), `images`, `links`, `security_checks` — applied to project `tikwmidmueieicuyqsem`; sign-up and data access limited to @saltedstone.com
 - [x] Job queue: `runs` table with a status column (`queued` → `running` → `done` / `failed`), polled by the worker
-- [~] Worker: Node.js + Playwright + `@axe-core/playwright` built and processing runs from the live queue; not yet deployed to Railway or Fly.io
+- [x] Worker: Node.js + Playwright + `@axe-core/playwright`, processing runs from the live queue; hosted on GitHub Actions (`.github/workflows/scan.yml`) instead of Railway/Fly.io, so it's free on the public repo
 - [x] Concurrency of 3–5 pages per scan, with a delay between requests
 - [x] Progress written back to the run (pages done / total) so the app can show it
 - [x] **Stable issue fingerprint** (rule + selector + module) stored on every issue — Phase 2 run comparison depends on this, so design it now

@@ -38,7 +38,11 @@ export function RunProgress({ initial }: { initial: Progress }) {
   }, [run.id, run.status, router]);
 
   if (run.status === "queued") {
-    return <p className="text-sm text-slate-600" role="status">Queued — waiting for the scanner to pick it up…</p>;
+    return (
+      <p className="text-sm text-slate-600" role="status">
+        Queued — waiting for the scanner to start. This usually takes 1–2 minutes.
+      </p>
+    );
   }
   if (run.status !== "running") return null;
 

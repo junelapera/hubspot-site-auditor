@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { triggerScanWorker } from "@/lib/dispatch";
 import { requireUser } from "@/lib/supabase/server";
 
 export type FormState = { error?: string };
@@ -71,6 +72,7 @@ export async function queueRun(siteId: string): Promise<FormState> {
 
   const { error } = await supabase.from("runs").insert({ site_id: siteId });
   if (error) return { error: error.message };
+  await triggerScanWorker();
 
   revalidatePath(`/sites/${siteId}`);
   return {};
