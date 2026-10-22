@@ -19,7 +19,7 @@ export default async function HomePage() {
   if (error) throw error;
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8">
+    <main className="page space-y-8">
       <section>
         <h1 className="font-display text-4xl font-medium leading-tight tracking-tight break-words sm:text-5xl">Sites</h1>
         <p className="mt-1 text-sm text-ink/75">Scan a HubSpot site to get its issues grouped by module.</p>

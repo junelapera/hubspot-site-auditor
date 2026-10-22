@@ -42,7 +42,7 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
   const View = VIEWS[view].component;
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
+    <main className="page space-y-6">
       <div>
         <Link href={`/sites/${run.site_id}`} className="eyebrow inline-flex items-center gap-1 py-1 hover:underline hover:underline-offset-4">
           <BackChevron />

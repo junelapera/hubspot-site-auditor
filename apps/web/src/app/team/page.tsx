@@ -28,7 +28,7 @@ export default async function TeamPage() {
     .sort((a, b) => a.email.localeCompare(b.email));
 
   return (
-    <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8">
+    <main className="page space-y-6">
       <div>
         <h1 className="font-display text-4xl font-medium leading-tight tracking-tight break-words sm:text-5xl">Team</h1>
         <p className="mt-1 text-sm text-ink/75">Accounts are invite-only. Anyone on the team can invite a Salted Stone colleague.</p>

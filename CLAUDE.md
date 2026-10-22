@@ -53,7 +53,7 @@ Run `pnpm test` and `pnpm typecheck` before saying a change is done. For web cha
 - The service role key is used in the web app **only** through `createAdminClient()` (`@/lib/supabase/admin`), for user admin: invites and the team list. Call it after `requireUser()` plus an `isAgencyEmail()` check. Never use it for table data, and never give it a `NEXT_PUBLIC_` name.
 - **Accounts are invite-only.** Public sign-up is off; invites are one-time links shown to the inviter (no email). `/accept-invite` must only use the token on the button's POST, never on GET, because chat apps fetch links to build previews.
 - `apps/web/src/lib/types.ts` mirrors the database by hand. Update it when a migration changes a table.
-- UI follows the Salted Stone brand: use the tokens and component classes in `globals.css` (`btn`, `card`, `input`, `label`, `chip`, `eyebrow`) rather than raw colors. Text on brand colors is always ink; use `text-rust` for errors and `text-ink/70` or darker for muted text (contrast is pre-checked). Icons come from `lucide-react`, never text arrows.
+- UI follows the Salted Stone brand: use the tokens and component classes in `globals.css` (`page` on every `<main>`, `btn`, `card`, `input`, `label`, `chip`, `eyebrow`) rather than raw colors. Text on brand colors is always ink; use `text-rust` for errors and `text-ink/70` or darker for muted text (contrast is pre-checked). Icons come from `lucide-react`, never text arrows.
 - Keep it accessible (labels, focus styles, `role="status"` / `role="alert"`, 24px targets); this is an accessibility tool. Run axe on changed screens.
 - Turbopack's Tailwind loader must skip foreign CSS (`condition: { not: "foreign" }` in `next.config.ts`), or `next/font` breaks in dev.
 

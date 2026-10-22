@@ -133,7 +133,7 @@ For local development, run `pnpm worker` instead. It polls every 5 seconds.
 
 ## Design
 
-The web app follows the Salted Stone look from saltedstone.com. Brand tokens (colors, fonts) and shared component classes (`btn`, `card`, `input`, `label`, `chip`, `eyebrow`) live in [`apps/web/src/app/globals.css`](apps/web/src/app/globals.css), with contrast ratios noted. Rules:
+The web app follows the Salted Stone look from saltedstone.com. Brand tokens (colors, fonts) and shared component classes (`page`, `btn`, `card`, `input`, `label`, `chip`, `eyebrow`) live in [`apps/web/src/app/globals.css`](apps/web/src/app/globals.css), with contrast ratios noted. Rules:
 
 - Text on any brand color is ink; brand orange and red are never used as text on cream.
 - Focus rings are ink.

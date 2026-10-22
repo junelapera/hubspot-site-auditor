@@ -21,7 +21,7 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
   const active = runs?.find((r) => r.status === "queued" || r.status === "running");
 
   return (
-    <main className="mx-auto w-full max-w-6xl space-y-6 px-4 py-8">
+    <main className="page space-y-6">
       <div>
         <Link href="/" className="eyebrow inline-flex items-center gap-1 py-1 hover:underline hover:underline-offset-4">
           <BackChevron />

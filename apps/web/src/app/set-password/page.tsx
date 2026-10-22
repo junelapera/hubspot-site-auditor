@@ -8,7 +8,7 @@ export const metadata = { title: "Set your password · HubSpot Site Auditor" };
 export default async function ResetPasswordPage() {
   const { user } = await requireUser();
   return (
-    <main className="flex flex-1 items-center justify-center px-4 py-16">
+    <main className="page flex flex-1 items-center justify-center py-16">
       <div className="card w-full max-w-md p-8">
         <Image src="/brand/saltedstone.svg" alt="Salted Stone" width={124} height={36} priority />
         <h1 className="mt-6 font-display text-3xl font-medium leading-tight tracking-tight">Set your password</h1>
