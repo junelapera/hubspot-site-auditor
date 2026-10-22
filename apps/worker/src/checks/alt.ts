@@ -26,6 +26,12 @@ const CAMERA_NAME = /^(img|dsc|dscn|dcim|pxl|screen ?shot|screenshot|photo|image
 export interface FlaggedImage {
   src: string;
   alt: string | null;
+  /** Context for the fix suggestion. */
+  linkHref: string | null;
+  width: number;
+  height: number;
+  caption: string | null;
+  heading: string | null;
   checks: AltCheck[];
   worstSeverity: AltSeverity;
   location: Location;
@@ -59,11 +65,19 @@ export function isFilenameAlt(alt: string, src: string): boolean {
 }
 
 function isRedundant(alt: string, img: ImageInfo): boolean {
-  const a = normalize(alt);
-  return [img.caption, img.heading].some((t) => t && normalize(t) === a);
+  return redundantWith(alt, img) !== null;
 }
 
-function fileStem(src: string): string {
+/** Which nearby text the alt repeats, if any. */
+export function redundantWith(alt: string | null, img: Pick<ImageInfo, "caption" | "heading">): "caption" | "heading" | null {
+  if (!alt) return null;
+  const a = normalize(alt);
+  if (img.caption && normalize(img.caption) === a) return "caption";
+  if (img.heading && normalize(img.heading) === a) return "heading";
+  return null;
+}
+
+export function fileStem(src: string): string {
   try {
     const name = decodeURIComponent(new URL(src).pathname.split("/").pop() ?? "");
     return name.replace(IMAGE_EXT, "");
@@ -95,6 +109,11 @@ export function auditImages(pages: PageResult[]): FlaggedImage[] {
       flagged.set(key, {
         src: img.src,
         alt: img.alt,
+        linkHref: img.linkHref ?? null,
+        width: img.width ?? 0,
+        height: img.height ?? 0,
+        caption: img.caption,
+        heading: img.heading,
         checks,
         worstSeverity: checks.map((c) => ALT_SEVERITY[c]).reduce((a, b) => (rank[b] > rank[a] ? b : a)),
         location: img.location,
@@ -103,4 +122,19 @@ export function auditImages(pages: PageResult[]): FlaggedImage[] {
     }
   }
   return [...flagged.values()];
+}
+
+export type ImageKind = "logo" | "icon" | "chart" | "person" | "screenshot" | "photo";
+
+/** A best guess at what kind of image this is, from its file name, alt, module and size, to pick a fitting example. */
+export function imageKind(img: Pick<FlaggedImage, "src" | "alt" | "width" | "height" | "location">): ImageKind {
+  // "Screen Shot 2019-12-11 at …" / "IMG_4021" say how the file was made, not what it shows.
+  const name = CAMERA_NAME.test(fileStem(img.src)) || /^screen ?shot \d/i.test(fileStem(img.src)) ? "" : fileStem(img.src);
+  const text = `${name} ${img.alt ?? ""} ${img.location.module ?? ""}`.toLowerCase();
+  if (/logo|brand|wordmark/.test(text)) return "logo";
+  if (/icon|ico[-_]|arrow|chevron/.test(text) || (img.width > 0 && img.width <= 64 && img.height <= 64)) return "icon";
+  if (/chart|graph|diagram|infographic|stat/.test(text)) return "chart";
+  if (/headshot|portrait|team|staff|founder|ceo|profile|avatar|person|people/.test(text)) return "person";
+  if (/screenshot|dashboard|interface|\bui\b/.test(text)) return "screenshot";
+  return "photo";
 }

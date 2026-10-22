@@ -23,9 +23,10 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Form check (Phase 2) | Each HubSpot form (by form ID) is tested once per scan, on the first page it's on: labels (missing, placeholder-only, consent), required fields marked * but not announced, Tab reachability and visible focus (on the field, its wrapper or label; transitions disabled first), placeholder contrast; then, if it has required fields and an empty submit button, it's submitted **empty** with every non-GET request blocked, and the error messages are checked (shown, tied to the field, announced) along with error text contrast (axe). Cross-origin form iframes are listed as not checked. Forms tab with one fix per kind of problem, and a forms CSV. saltedstone.com: the contact form has no visible focus on 6 fields (confirmed by screenshot); the blog subscribe form's error isn't tied to its field and its error text is 2.58:1. |
 | Scan specific pages (Phase 2) | "Scan specific pages" on the site page: paste URLs or paths (one per line, up to 200, site's own domain only), and scan only those or the sitemap plus those. The list is kept if it's rejected. Scans show a "N listed pages" / "Sitemap + N listed" chip. URL-list scans still read the sitemap (without scanning it) so the link check skips known-live pages: the same 3 pages went from 66s to 13s. CLI: `--urls` and `--extra-urls`. |
 | Sampled scan (Phase 2) | "Sampled scan" button next to "Run scan": reads every sitemap page's HTML (plain GET, 4 at a time, up to 2,000 pages), names its modules the way the browser scanner does, then scans the fewest pages that cover every module, global partial and template wrapper (greedy, up to the page limit). Progress shows pages read; the report and scan list say how many modules the sample covers. On saltedstone.com, 2 of 212 case-study pages cover all 28 modules in that section; 10 of all 584 pages cover 146 of 191 modules. Reading runs at ~2.7 pages/s (584 pages in 217s, no rate limiting). CLI: `--sample`. |
+| Alt-text fixes (Phase 2) | Each flagged image's fix quotes the current alt and says why it fails, gives an example of good alt for its kind of image (logo, icon, chart, person, screenshot or photo, guessed from file name, alt, module and size), names the link destination for linked images, and says where to edit it (module field, rich text editor, global module or template). New scans only. |
 | Look and feel | Salted Stone brand from saltedstone.com: cream / ink palette, logo and S² favicon, serif headings, mono uppercase labels, orange pill buttons, brand-colored severity chips, chevron icons, brand-styled dropdowns (Radix Select). Every color pair contrast-checked. |
 | Accessibility of the app itself | axe (WCAG 2.2 AA) passes on all 12 screens. No sideways scrolling down to 320px wide. |
-| Tests | 48 worker + 24 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
+| Tests | 53 worker + 24 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
 
@@ -43,14 +44,14 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - Production is current: https://hubspot-site-auditor.vercel.app (latest: dates in the viewer's time zone; brand dropdown on the compare page; scan comparison and won't-fix marking).
 - Local: `pnpm dev` (web on :3000) and, optionally, `pnpm worker`. If CSS looks stale after a `pnpm build`, stop the dev server, delete `apps/web/.next`, and start it again.
 - Waiting on: 3 client domains (and SecurityScorecard reports if available) for the Phase 1 acceptance runs.
-- Ready to start without input: the rest of Phase 2 (mobile-width scan, alt-text fix templates).
+- Ready to start without input: the rest of Phase 2 (mobile-width scan).
 
 ## Next
 
 1. **Acceptance runs** on 3 client sites (ideally different themes): named-module rate (90%+), alt-text false positives (under 10%), a SecurityScorecard comparison (90%+ match), a 200-page timing (under 15 min), and a test import of the issues CSV into Teamwork. Needs: the 3 domains, and SecurityScorecard reports if available.
 2. **Custom SMTP** in Supabase Auth (optional): only needed for "Forgot password?" emails. Invites don't use email.
 3. **Confirm the form check creates no contacts:** after a scan of a site with forms, check its HubSpot CRM for new contacts. The network side is already verified.
-4. **Phase 2, next items:** mobile-width scan, alt-text fix templates, mobile-width scan, File Manager pass, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
+4. **Phase 2, next items:** mobile-width scan, File Manager pass, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
 
 ## Known issues and decisions
 

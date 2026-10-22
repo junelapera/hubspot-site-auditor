@@ -160,9 +160,14 @@
   const images = [...document.querySelectorAll("img")].map((img) => {
     const figure = img.closest("figure");
     const caption = figure && figure.querySelector("figcaption");
+    const link = img.closest("a[href]");
+    const box = img.getBoundingClientRect();
     return {
       src: img.currentSrc || img.src,
       alt: img.getAttribute("alt"),
+      linkHref: link ? link.href : null,
+      width: Math.round(box.width),
+      height: Math.round(box.height),
       role: img.getAttribute("role"),
       ariaHidden: img.closest("[aria-hidden=true]") !== null,
       onlyContentOfLink: isOnlyContentOfLink(img),

@@ -80,7 +80,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 - [x] Forms: the form editor setting to change, or a theme CSS/JS snippet
 - [ ] Links: likely replacement URL, or a ready-made redirect row
-- [ ] Alt text: why the current alt fails, plus an example of good alt for that kind of image
+- [x] Alt text: why the current alt fails, plus an example of good alt for that kind of image
 
 ### 7. Scan options
 

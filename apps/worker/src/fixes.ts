@@ -1,6 +1,6 @@
 // Template-based fix suggestions (Phase 1). Predictable and fast; Phase 3 swaps
 // in Claude API snippets tailored to the module's actual code.
-import type { AltCheck } from "./checks/alt.js";
+import { fileStem, imageKind, MAX_ALT_LENGTH, redundantWith, type AltCheck, type FlaggedImage, type ImageKind } from "./checks/alt.js";
 import type { LinkCheck, LinkIssue } from "./checks/links.js";
 import type { JsLibrary } from "./checks/libraries.js";
 import type { MixedContentIssue } from "./checks/page-security.js";
@@ -255,38 +255,98 @@ function cssSelector(issue: Issue): string {
 
 // ---------- alt text ----------
 
-const ALT_FIXES: Record<AltCheck, FixSuggestion> = {
-  missing: {
-    summary: "The image has no alt attribute, so screen readers announce the file name or nothing useful.",
-    steps: ["Add alt describing what the image shows or does, e.g. \"Team planning a website launch\". Use alt=\"\" only for decorative images."],
-  },
-  filename: {
-    summary: "The alt is the file name, which HubSpot fills in by default. It tells a screen reader user nothing.",
-    steps: [
-      "Replace it with a description of the image's content or purpose.",
-      "For a logo: the organisation's name, e.g. \"Salted Stone\". For an icon next to text: alt=\"\".",
-    ],
-  },
-  generic: {
-    summary: "The alt is a placeholder word like \"image\" or \"logo\".",
-    steps: ["Describe what this specific image shows, e.g. \"Acme Health logo\" instead of \"logo\"."],
-  },
-  "empty-linked": {
-    summary: "This image is the only content of a link and has empty alt, so the link has no name.",
-    steps: ["Set the alt to describe the link destination, e.g. \"Read the Acme case study\"."],
-  },
-  "too-long": {
-    summary: "The alt is over 150 characters. Long alt is tiring to listen to.",
-    steps: ["Keep alt to one short sentence. Move detail into a caption or the body text."],
-  },
-  redundant: {
-    summary: "The alt repeats the caption or heading next to it, so it's read twice.",
-    steps: ["Use alt=\"\" if the nearby text already describes the image, or describe something the text doesn't say."],
-  },
+/** An example of good alt for each kind of image (imageKind in checks/alt.ts). */
+const GOOD_ALT: Record<ImageKind, string> = {
+  logo: 'the organisation\'s name, e.g. "Acme Health" (or "Acme Health home" if it links to the homepage)',
+  icon: 'alt="" if the text next to it says the same thing; if it stands alone as a button or link, what it does, e.g. "Download the PDF"',
+  chart: 'the main takeaway, e.g. "Bar chart: support tickets fell 40% from January to June", with the full figures in text nearby',
+  person: 'who it is and why they\'re shown, e.g. "Jo Smith, Head of Marketing"',
+  screenshot: 'what it shows that matters here, e.g. "HubSpot deal pipeline with six stages from Discovery to Closed won"',
+  photo: 'what\'s in it that matters on this page, e.g. "Two engineers inspecting a wind turbine blade"',
 };
 
-export function suggestAltFix(checks: AltCheck[]): FixSuggestion[] {
-  return checks.map((c) => ALT_FIXES[c]);
+const KIND_LABEL: Record<ImageKind, string> = {
+  logo: "a logo",
+  icon: "an icon",
+  chart: "a chart or diagram",
+  person: "a photo of a person",
+  screenshot: "a screenshot",
+  photo: "a photo",
+};
+
+/** Where the alt text is edited, from where the image sits. */
+function altWhere(img: FlaggedImage): string {
+  switch (img.location.scope) {
+    case "content":
+      return "Edit it in the page or post editor: click the image in the rich text, then the alt text field.";
+    case "global":
+      return `It's in a global module${img.location.module ? ` (${img.location.module})` : ""}: edit it once and every page updates.`;
+    case "module":
+      return `Edit the image field's alt text on the ${img.location.module ?? "module"}. If the module has no alt text field, add one to the module (alt="{{ module.image.alt }}").`;
+    case "template":
+      return "The image is in the template code: set alt there, or move it into a module field so editors can change it.";
+    default:
+      return "Find the image in the page editor or theme and set its alt text.";
+  }
+}
+
+function quote(alt: string | null): string {
+  return alt === null ? "no alt" : `"${alt.length > 80 ? `${alt.slice(0, 77)}…` : alt}"`;
+}
+
+function linkTarget(href: string | null): string | null {
+  if (!href) return null;
+  try {
+    const u = new URL(href);
+    return u.pathname === "/" ? u.hostname : u.pathname;
+  } catch {
+    return href;
+  }
+}
+
+/**
+ * One fix per failing check: why the current alt fails, an example of good alt for
+ * this kind of image, and where to change it in HubSpot.
+ */
+export function suggestAltFix(img: FlaggedImage): FixSuggestion[] {
+  const kind = imageKind(img);
+  const good = `Good alt for ${KIND_LABEL[kind]}: ${GOOD_ALT[kind]}.`;
+  const where = altWhere(img);
+  const target = linkTarget(img.linkHref);
+  // A linked logo keeps the logo advice, which already covers linking home.
+  const linked =
+    target && kind !== "logo"
+      ? `This image links to ${target}, so its alt is the link's name: say where it goes, e.g. "Read the Acme case study".`
+      : null;
+  const length = img.alt?.length ?? 0;
+
+  const fixes: Record<AltCheck, FixSuggestion> = {
+    missing: {
+      summary: `No alt attribute: screen readers read out the file name ("${fileStem(img.src) || "image"}") or just "image".`,
+      steps: [linked ?? good, "Use alt=\"\" only if the image is purely decorative.", where, REVIEW_NOTE],
+    },
+    filename: {
+      summary: `Alt ${quote(img.alt)} is a file name (HubSpot fills this in by default), which tells a screen reader user nothing.`,
+      steps: [linked ?? good, where, REVIEW_NOTE],
+    },
+    generic: {
+      summary: `Alt ${quote(img.alt)} says what kind of image it is, not what it shows.`,
+      steps: [linked ?? good, where, REVIEW_NOTE],
+    },
+    "empty-linked": {
+      summary: `alt="" on an image that is the only content of a link${target ? ` to ${target}` : ""}, so the link has no name.`,
+      steps: [linked ?? 'Give the image alt that says where the link goes, e.g. "Read the Acme case study".', where, REVIEW_NOTE],
+    },
+    "too-long": {
+      summary: `Alt is ${length} characters (over ${MAX_ALT_LENGTH}), which is tiring to listen to and often repeats nearby text.`,
+      steps: ["Keep alt to one short sentence: what someone needs to know from the image. Move detail into a caption or the body text.", where, REVIEW_NOTE],
+    },
+    redundant: {
+      summary: `Alt ${quote(img.alt)} repeats the ${redundantWith(img.alt, img) ?? "text"} next to it, so screen readers hear it twice.`,
+      steps: ['Use alt="" if the nearby text already says what the image shows, or describe something the text doesn\'t.', where, REVIEW_NOTE],
+    },
+  };
+  return img.checks.map((c) => fixes[c]);
 }
 
 // ---------- links ----------

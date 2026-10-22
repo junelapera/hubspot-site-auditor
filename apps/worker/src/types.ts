@@ -14,6 +14,11 @@ export interface Location {
 export interface ImageInfo {
   src: string;
   alt: string | null;
+  /** Where the image links to, if it's inside a link. */
+  linkHref?: string | null;
+  /** Rendered size in CSS pixels (0 when not displayed). */
+  width?: number;
+  height?: number;
   role: string | null;
   ariaHidden: boolean;
   onlyContentOfLink: boolean;

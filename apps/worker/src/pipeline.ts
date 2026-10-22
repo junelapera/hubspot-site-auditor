@@ -147,7 +147,7 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
     pages,
     issues: issues.map((i) => ({ ...i, fix: suggestAxeFix(i) })),
     modules: summarizeModules(issues),
-    images: auditImages(pages).map((i) => ({ ...i, fixes: suggestAltFix(i.checks) })),
+    images: auditImages(pages).map((i) => ({ ...i, fixes: suggestAltFix(i) })),
     links: links.map((l) => ({ ...l, fix: suggestLinkFix(l) })),
     security: security.map((s) => ({ ...s, fix: suggestSecurityFix(s) })),
     mixedContent: mixedContent.map((m) => ({ ...m, fix: suggestMixedContentFix(m) })),
