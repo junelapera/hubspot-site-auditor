@@ -24,7 +24,7 @@ const REDACT = process.env.REDACT_LOGS === "1";
 interface Run {
   id: string;
   site_id: string;
-  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[] };
+  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[]; extraUrls?: string[] };
 }
 
 let stopping = false;
@@ -60,6 +60,7 @@ async function processRun(run: Run) {
       {
         domain: site.domain,
         urls: run.options.urls,
+        extraUrls: run.options.extraUrls,
         include: run.options.include ?? site.include_paths,
         exclude: run.options.exclude ?? site.exclude_paths,
         limit: run.options.limit ?? site.page_limit,

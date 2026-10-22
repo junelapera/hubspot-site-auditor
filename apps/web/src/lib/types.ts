@@ -55,6 +55,8 @@ export interface Run {
   id: string;
   site_id: string;
   status: RunStatus;
+  /** Crawl settings at queue time; urls / extraUrls for a pasted page list. */
+  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[]; extraUrls?: string[] };
   stage: string | null;
   pages_total: number | null;
   pages_done: number;

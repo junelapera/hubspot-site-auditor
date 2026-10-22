@@ -129,7 +129,11 @@ Scan without Supabase, printing the module list to the terminal and saving JSON 
 ```bash
 pnpm scan www.example.com --limit 20
 pnpm scan www.example.com --include "/services/**" --exclude "/blog/page/**"
+pnpm scan www.example.com --urls https://www.example.com/,https://www.example.com/contact   # only these pages
+pnpm scan www.example.com --limit 10 --extra-urls https://www.example.com/landing           # sitemap plus these
 ```
+
+In the app, **Scan specific pages** on a site does the same: paste URLs or paths, then scan only those or the sitemap plus those.
 
 Keep `--limit` small while developing. HubSpot's Cloudflare edge rate-limits quickly; the scanner backs off on HTTP 429, but repeated full scans will still get throttled.
 
@@ -176,5 +180,5 @@ pnpm build       # web app production build
 ## Roadmap
 
 - **Phase 1 — MVP:** module-aware scan, alt text, internal links, security headers, fix suggestions, report views, CSV export. [phases/phase-1-mvp.md](phases/phase-1-mvp.md)
-- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, scores, security checks, external links, anchors, WCAG view, and form check done): forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
+- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, scores, security checks, external links, anchors, WCAG view, form check, and URL lists done): forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
 - **Phase 3 — Client-facing:** shareable reports, scheduled scans, Teamwork push, CMS API module paths, Claude API fixes. [phases/phase-3-client-facing.md](phases/phase-3-client-facing.md)

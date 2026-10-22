@@ -1,6 +1,6 @@
 # Phase 2 — Re-scans and File Manager
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links, anchors, WCAG view, and the form check done · Depends on: [Phase 1](phase-1-mvp.md)
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links, anchors, WCAG view, form check, and URL lists done · Depends on: [Phase 1](phase-1-mvp.md)
 
 ## Goal
 
@@ -86,7 +86,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 - [ ] Mobile-width scan alongside desktop; issues tagged by viewport, deduped across both
 - [ ] Sampling mode: one page per template for a fast first pass on large sites
-- [ ] Paste a URL list instead of the sitemap, or add URLs the sitemap misses *
+- [x] Paste a URL list instead of the sitemap, or add URLs the sitemap misses *
 
 ### 8. Views
 

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LocalTime, TimeAgo } from "@/components/local-time";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/badge";
-import { QueueRunButton, SiteSettingsForm } from "@/components/forms";
+import { QueueRunButton, ScanUrlsForm, SiteSettingsForm } from "@/components/forms";
 import { RunProgress } from "@/components/run-progress";
 import { BackChevron, DisclosureChevron } from "@/components/chevron";
 import { GradeChip } from "@/components/scores";
@@ -63,6 +63,17 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
         </div>
       </details>
 
+      <details className="group card">
+        <summary className="flex cursor-pointer select-none flex-wrap items-center gap-x-2 px-4 py-3">
+          <DisclosureChevron />
+          <span className="eyebrow">Scan specific pages</span>
+          <span className="text-sm text-ink/75">paste a list instead of, or as well as, the sitemap</span>
+        </summary>
+        <div className="border-t border-ink/30 p-4">
+          <ScanUrlsForm site={site} disabled={Boolean(active)} />
+        </div>
+      </details>
+
       <section className="overflow-hidden card">
         <h2 className="eyebrow border-b border-ink px-4 py-3">Scans</h2>
         {!runs?.length ? (
@@ -71,7 +82,7 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
           <ul className="divide-y divide-ink/15">
             {runs.map((run) => (
               <li key={run.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   {run.status === "done" ? (
                     <Link href={`/runs/${run.id}`} className="font-medium text-ink underline-offset-2 hover:underline">
                       <LocalTime iso={run.created_at} />
@@ -82,6 +93,11 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
                     </span>
                   )}
                   <span className="text-ink/70"><TimeAgo iso={run.created_at} /></span>
+                  {run.options?.urls?.length ? (
+                    <span className="chip bg-paper">{run.options.urls.length} listed {run.options.urls.length === 1 ? "page" : "pages"}</span>
+                  ) : run.options?.extraUrls?.length ? (
+                    <span className="chip bg-paper">Sitemap + {run.options.extraUrls.length} listed</span>
+                  ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink/85">
                   {run.status === "done" && runs.slice(runs.indexOf(run) + 1).some((r) => r.status === "done") && (

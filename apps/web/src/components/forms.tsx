@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
-import { addSite, queueRun, updateSiteSettings, type FormState } from "@/lib/actions";
+import { addSite, queueListedRun, queueRun, updateSiteSettings, type FormState, type ListedRunState } from "@/lib/actions";
+import { MAX_LISTED_URLS } from "@/lib/url-list";
 import type { Site } from "@/lib/types";
 
 
@@ -95,6 +96,50 @@ export function SiteSettingsForm({ site }: { site: Site }) {
         <button type="submit" disabled={pending} className="btn btn-primary">{pending ? "Saving…" : "Save settings"}</button>
         <ErrorText state={state} id="settings-error" />
       </div>
+    </form>
+  );
+}
+
+export function ScanUrlsForm({ site, disabled }: { site: Site; disabled?: boolean }) {
+  const [state, action, pending] = useActionState<ListedRunState, FormData>(queueListedRun.bind(null, site.id), {});
+  return (
+    <form action={action} className="space-y-4">
+      <div>
+        <label htmlFor="urls" className="label">Pages</label>
+        <textarea
+          id="urls"
+          name="urls"
+          rows={5}
+          required
+          defaultValue={state.text}
+          placeholder={`/pricing\nhttps://${site.domain}/contact`}
+          aria-describedby="urls-help urls-error"
+          className="input mt-1 font-mono"
+        />
+        <p id="urls-help" className="mt-1 text-xs text-ink/70">
+          URLs or paths on {site.domain}, one per line. Up to {MAX_LISTED_URLS}.
+        </p>
+      </div>
+      <fieldset>
+        <legend className="label">Scan</legend>
+        <div className="mt-1 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+          <label className="inline-flex min-h-6 items-center gap-2">
+            <input type="radio" name="mode" value="only" defaultChecked={state.mode !== "add"} className="size-4 accent-ink" />
+            Only these pages
+          </label>
+          <label className="inline-flex min-h-6 items-center gap-2">
+            <input type="radio" name="mode" value="add" defaultChecked={state.mode === "add"} className="size-4 accent-ink" />
+            The sitemap plus these pages
+          </label>
+        </div>
+      </fieldset>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending || disabled} className="btn btn-primary">
+          {pending ? "Queuing…" : "Scan these pages"}
+        </button>
+        {disabled && <p className="text-sm text-ink/75">A scan is already queued or running.</p>}
+      </div>
+      <ErrorText state={state} id="urls-error" />
     </form>
   );
 }

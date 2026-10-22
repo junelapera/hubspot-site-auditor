@@ -28,8 +28,10 @@ import type { Issue, ModuleSummary, PageResult } from "./types.js";
 
 export interface AuditInput extends CrawlOptions {
   domain?: string;
-  /** Use this list instead of the sitemap. */
+  /** Scan only these pages instead of the sitemap. */
   urls?: string[];
+  /** Scan these pages as well as the sitemap's. */
+  extraUrls?: string[];
   concurrency?: number;
 }
 
@@ -80,9 +82,18 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
     };
   })();
 
-  const crawl = input.urls?.length
-    ? { urls: input.urls, sitemapUrls: [] }
-    : await crawlSitemap(input.domain!, { include: input.include, exclude: input.exclude, limit: input.limit });
+  const filters = { include: input.include, exclude: input.exclude, limit: input.limit };
+  let crawl: { urls: string[]; sitemapUrls: string[] };
+  if (input.urls?.length) {
+    // Only the listed pages. The sitemap is still read (not scanned) when there's a domain,
+    // so the link check can skip pages known to be live instead of requesting every link.
+    const sitemap = input.domain ? await crawlSitemap(input.domain).catch(() => null) : null;
+    crawl = { urls: unique(input.urls), sitemapUrls: sitemap?.sitemapUrls ?? [] };
+  } else {
+    crawl = await crawlSitemap(input.domain!, filters);
+    // Pages the sitemap misses, scanned on top of it (outside the page limit and path filters).
+    if (input.extraUrls?.length) crawl = { ...crawl, urls: unique([...crawl.urls, ...input.extraUrls]) };
+  }
   const { urls } = crawl;
   if (!urls.length) throw new Error("No URLs to scan after filters");
   const crawlMs = mark();
@@ -143,4 +154,8 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
       stageMs: { crawl: crawlMs, scan: scanMs, links: linksMs, security: securityMs },
     },
   };
+}
+
+function unique(urls: string[]): string[] {
+  return [...new Set(urls)];
 }

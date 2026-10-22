@@ -1,4 +1,4 @@
-// Local scan without Supabase: pnpm scan <domain> [--limit 20] [--include "/a/**"] [--exclude "/blog/page/**"] [--urls u1,u2]
+// Local scan without Supabase: pnpm scan <domain> [--limit 20] [--include "/a/**"] [--exclude "/blog/page/**"] [--urls u1,u2] [--extra-urls u1,u2]
 import { mkdirSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { moduleLabel } from "./aggregate.js";
@@ -11,6 +11,7 @@ const { values, positionals } = parseArgs({
     include: { type: "string", multiple: true },
     exclude: { type: "string", multiple: true },
     urls: { type: "string" },
+    "extra-urls": { type: "string" },
     concurrency: { type: "string", default: "3" },
   },
 });
@@ -25,6 +26,7 @@ const result = await runAudit(
   {
     domain,
     urls: values.urls?.split(",").map((u) => u.trim()),
+    extraUrls: values["extra-urls"]?.split(",").map((u) => u.trim()),
     include: values.include,
     exclude: values.exclude,
     limit: Number(values.limit),
