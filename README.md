@@ -113,7 +113,7 @@ Keep `--limit` small while developing. HubSpot's Cloudflare edge rate-limits qui
 
 | Part | Where | How |
 | --- | --- | --- |
-| Web app | Vercel | Import the repo, set Root Directory to `apps/web`, add the `NEXT_PUBLIC_SUPABASE_*` env vars |
+| Web app | Vercel | Import the repo, set Root Directory to `apps/web`, add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `GITHUB_DISPATCH_TOKEN` (sensitive), and `GITHUB_REPOSITORY` |
 | Worker | GitHub Actions | [`.github/workflows/scan.yml`](.github/workflows/scan.yml) drains the queue and exits |
 | Database + auth | Supabase | `npx supabase db push` |
 

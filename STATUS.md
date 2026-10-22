@@ -10,7 +10,7 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | --- | --- |
 | Scanner (worker) | Crawl, axe scan, module mapping, dedupe, alt / link / security checks, fix suggestions. Runs locally (CLI) and from the Supabase queue. |
 | Database | Schema, queue (`claim_run`), and `module_summary` view applied to Supabase. Sign-up and reads limited to @saltedstone.com, tested on the live project. |
-| Web app | Magic-link login, sites, run a scan with live progress, report with Modules / Pages / Images / Links / Security tabs and copyable fixes. Runs locally. "Run scan" triggers the GitHub Actions worker when `GITHUB_DISPATCH_TOKEN` is set. |
+| Web app | Magic-link login, sites, run a scan with live progress, report with Modules / Pages / Images / Links / Security tabs and copyable fixes. Deployed to Vercel; pushes to `main` deploy production. "Run scan" in production verified: the worker started 47s after the click. |
 | Worker hosting | GitHub Actions workflow (`scan.yml`): on dispatch, by hand, and every 15 min. Verified from the app's "Run scan" button: a 5-page scan started 42s after the click (Chromium cached) and finished 15s later. Public log shows run IDs only. |
 | Tests | 28 worker unit tests; both apps typecheck; web app lints and builds. |
 
@@ -28,7 +28,7 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 ## Next
 
 1. **CSV exports:** issues (Teamwork / Jira import), flagged images, security checks.
-2. **Deploy the web app** to Vercel: Root Directory `apps/web`, the Supabase env vars, `GITHUB_DISPATCH_TOKEN`, and `GITHUB_REPOSITORY`. Add the production URL to Supabase Auth redirect URLs.
+2. **Supabase Auth URLs:** set Site URL to the production URL and add the redirect URLs (production, localhost, previews) so email sign-in links land on the right app.
 3. **Custom SMTP** in Supabase Auth, so teammates can receive sign-in emails.
 4. **Acceptance runs** on 3 client sites: named-module rate, alt-text false positives, a SecurityScorecard comparison, and a 200-page timing.
 
@@ -56,4 +56,4 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 | Supabase project | `tikwmidmueieicuyqsem` ("HubSpot Site Auditor") |
 | Repo | https://github.com/junelapera/hubspot-site-auditor (public) |
 | Worker hosting | GitHub Actions (`.github/workflows/scan.yml`) |
-| Web hosting | Not deployed (local only) |
+| Web hosting | Vercel, scope S2, project `hubspot-site-auditor`: https://hubspot-site-auditor.vercel.app (root `apps/web`) |

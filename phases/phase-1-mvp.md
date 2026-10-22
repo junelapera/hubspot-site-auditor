@@ -1,6 +1,6 @@
 # Phase 1 — MVP
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — worker and web app working locally; CSV export and deploys next
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — worker (GitHub Actions) and web app (Vercel) deployed; CSV export and acceptance runs next
 
 ## Goal
 
@@ -32,7 +32,7 @@ By the end of this phase, a developer can enter a domain, run a scan, and get a 
 
 ### 0. Foundation
 
-- [~] Next.js + Tailwind app built (magic-link login limited to @saltedstone.com, sites, queue a scan with live progress, report views); not yet deployed to Vercel
+- [x] Next.js + Tailwind app (magic-link login limited to @saltedstone.com, sites, queue a scan with live progress, report views), deployed to Vercel at https://hubspot-site-auditor.vercel.app
 - [x] Supabase project: auth, and tables for `sites`, `runs`, `pages`, `issues` (affected pages stored on each issue), `images`, `links`, `security_checks` — applied to project `tikwmidmueieicuyqsem`; sign-up and data access limited to @saltedstone.com
 - [x] Job queue: `runs` table with a status column (`queued` → `running` → `done` / `failed`), polled by the worker
 - [x] Worker: Node.js + Playwright + `@axe-core/playwright`, processing runs from the live queue; hosted on GitHub Actions (`.github/workflows/scan.yml`) instead of Railway/Fly.io, so it's free on the public repo
