@@ -1,0 +1,348 @@
+// Template-based fix suggestions (Phase 1). Predictable and fast; Phase 3 swaps
+// in Claude API snippets tailored to the module's actual code.
+import type { AltCheck } from "./checks/alt.js";
+import type { LinkCheck, LinkIssue } from "./checks/links.js";
+import type { SecurityResult } from "./checks/security.js";
+import type { Issue } from "./types.js";
+
+export interface Snippet {
+  lang: "html" | "hubl" | "css" | "js" | "text";
+  code: string;
+}
+
+export interface FixSuggestion {
+  summary: string;
+  steps: string[];
+  snippet?: Snippet;
+  reference?: string;
+}
+
+const REVIEW_NOTE = "Suggested fix — review before applying.";
+
+// ---------- axe rules ----------
+
+type RuleTemplate = (issue: Issue) => Omit<FixSuggestion, "reference">;
+
+const RULES: Record<string, RuleTemplate> = {
+  "color-contrast": (issue) => {
+    const c = parseContrast(issue.failureSummary);
+    const facts = c
+      ? `Current ratio ${c.ratio}:1 (text ${c.fg} on ${c.bg}); needs ${c.expected}.`
+      : "Text contrast is below the WCAG AA minimum.";
+    return {
+      summary: `Raise text contrast. ${facts}`,
+      steps: [
+        "Darken the text color or lighten the background until the ratio is at least 4.5:1 (3:1 for large text: 24px, or 18.66px bold).",
+        "If the color comes from a module style field, restrict the field's color options or set a compliant default.",
+        "If the color is in the theme, fix it in the theme CSS so every page using it is fixed.",
+      ],
+      snippet: c
+        ? {
+            lang: "css",
+            code: `${cssSelector(issue)} {\n  color: ${passingColor(c.fg, c.bg, parseFloat(c.expected))}; /* was ${c.fg} */\n}`,
+          }
+        : undefined,
+    };
+  },
+
+  "image-alt": (issue) =>
+    issue.scope === "content"
+      ? {
+          summary: "Add alt text to this image in the editor.",
+          steps: [
+            "Open the page or post in the HubSpot editor and select the image.",
+            "Describe what the image shows or does in the Alt text field. Leave it empty only if the image is purely decorative.",
+          ],
+        }
+      : !issue.module
+        ? {
+            // Template / header / footer markup: there's no module image field to read from.
+            summary: "Add an alt attribute to this <img> in the template.",
+            steps: [
+              "Find this image in the template or partial (the element path above shows where).",
+              "Describe the image, or use alt=\"\" if it's decorative. For blog author photos, use the author's name.",
+            ],
+            snippet: {
+              lang: "hubl",
+              code: `{# Blog author avatar #}\n<img src="{{ content.blog_post_author.avatar }}"\n     alt="{{ content.blog_post_author.display_name }}">\n\n{# Decorative image #}\n<img src="…" alt="">`,
+            },
+          }
+        : {
+          summary: "Output the image field's alt text in the module markup.",
+          steps: [
+            "In the module's HTML + HubL, render the alt value from the image field.",
+            "Make sure the field's alt text is filled in on each page, or provide a sensible default.",
+          ],
+          snippet: {
+            lang: "hubl",
+            code: `{% if module.image.src %}\n  <img src="{{ module.image.src }}"\n       alt="{{ module.image.alt }}"\n       width="{{ module.image.width }}" height="{{ module.image.height }}"\n       loading="{{ module.image.loading }}">\n{% endif %}`,
+          },
+        },
+
+  "link-name": () => ({
+    summary: "Give the link an accessible name.",
+    steps: [
+      "Add visible link text, or an aria-label when the link is icon-only.",
+      "For a linked image, put the destination description in the image's alt.",
+    ],
+    snippet: {
+      lang: "html",
+      code: `<a href="{{ module.link.url.href }}" aria-label="{{ module.link_label }}">\n  <svg aria-hidden="true" focusable="false">…</svg>\n</a>`,
+    },
+  }),
+
+  "button-name": () => ({
+    summary: "Give the button an accessible name.",
+    steps: ["Add visible text, or an aria-label for icon-only buttons. Mark the icon aria-hidden."],
+    snippet: {
+      lang: "html",
+      code: `<button type="button" aria-label="Open menu">\n  <svg aria-hidden="true" focusable="false">…</svg>\n</button>`,
+    },
+  }),
+
+  label: () => ({
+    summary: "Associate a label with this form control.",
+    steps: [
+      "Add a <label for> that matches the input's id, or an aria-label if a visible label isn't possible.",
+      "A placeholder is not a label.",
+    ],
+    snippet: { lang: "html", code: `<label for="search-input">Search</label>\n<input id="search-input" type="search" name="q">` },
+  }),
+
+  "select-name": () => ({
+    summary: "Associate a label with this select.",
+    steps: ["Add a <label for> matching the select's id."],
+    snippet: { lang: "html", code: `<label for="topic">Topic</label>\n<select id="topic" name="topic">…</select>` },
+  }),
+
+  "frame-title": () => ({
+    summary: "Add a title to the iframe describing its content.",
+    steps: ["Set a title attribute on the iframe, e.g. the video or map name."],
+    snippet: { lang: "html", code: `<iframe src="…" title="Video: Customer story with Acme"></iframe>` },
+  }),
+
+  "aria-allowed-attr": () => ({
+    summary: "Remove ARIA attributes the element's role doesn't support.",
+    steps: ["Remove the attribute, or change the element/role to one that supports it."],
+  }),
+
+  "aria-prohibited-attr": () => ({
+    summary: "Remove aria-label / aria-labelledby from an element whose role prohibits naming.",
+    steps: ["Remove the attribute, or give the element a role that supports a name (e.g. role=\"group\" or \"region\")."],
+  }),
+
+  "aria-hidden-focus": () => ({
+    summary: "Focusable content inside aria-hidden must not be reachable by keyboard.",
+    steps: ["Add tabindex=\"-1\" (or the inert attribute) to focusable children while the container is hidden, or remove aria-hidden."],
+    snippet: { lang: "js", code: `hiddenPanel.inert = true; // when collapsed\nhiddenPanel.inert = false; // when expanded` },
+  }),
+
+  "nested-interactive": () => ({
+    summary: "Don't put links or buttons inside other links or buttons.",
+    steps: ["Restructure so the interactive elements are siblings, e.g. make the card's title the link and stretch it with CSS."],
+  }),
+
+  list: () => ({
+    summary: "Lists may only contain <li>, <script> or <template> as direct children.",
+    steps: ["Wrap extra elements in <li>, or move them outside the <ul>/<ol>."],
+  }),
+
+  listitem: () => ({
+    summary: "<li> must be inside a <ul> or <ol>.",
+    steps: ["Wrap the items in a list element, or replace <li> with <div>."],
+  }),
+
+  "target-size": () => ({
+    summary: "Make the touch target at least 24 × 24 CSS pixels.",
+    steps: ["Increase padding on the control, or add spacing so neighbouring targets don't overlap the 24px area."],
+    snippet: { lang: "css", code: `.social-links a {\n  display: inline-flex;\n  min-width: 24px;\n  min-height: 24px;\n}` },
+  }),
+
+  "link-in-text-block": () => ({
+    summary: "Links in body text must be distinguishable without relying on color.",
+    steps: ["Underline links inside text blocks, or ensure 3:1 contrast with surrounding text plus a non-color hover/focus cue."],
+    snippet: { lang: "css", code: `.rich-text a {\n  text-decoration: underline;\n}` },
+  }),
+
+  "html-has-lang": () => ({
+    summary: "Set the page language.",
+    steps: ["HubSpot sets lang from the page's language setting. Check Settings → language on the page, or the <html> tag in a custom base template."],
+    snippet: { lang: "hubl", code: `<html lang="{{ html_lang }}" {{ html_lang_dir }}>` },
+  }),
+
+  "document-title": () => ({
+    summary: "Give the page a title.",
+    steps: ["Fill in the page title in the page's settings; make sure the base template outputs it."],
+    snippet: { lang: "hubl", code: `<title>{{ page_meta.html_title }}</title>` },
+  }),
+};
+
+export function suggestAxeFix(issue: Issue): FixSuggestion {
+  if (issue.scope === "embed") {
+    return {
+      summary: `This issue is inside a third-party embed (${issue.module}) and can't be fixed in the theme.`,
+      steps: [
+        "Check the provider's embed options for an accessible player or settings.",
+        "Make sure the iframe itself has a descriptive title attribute.",
+        "Note it as a third-party limitation in the client report.",
+      ],
+      reference: issue.helpUrl,
+    };
+  }
+
+  const template = RULES[issue.ruleId];
+  const base = template
+    ? template(issue)
+    : {
+        summary: issue.help,
+        steps: ["Follow the guidance in the linked axe rule and apply the fix in the module, template, or content shown."],
+      };
+  return { ...base, steps: [...base.steps, REVIEW_NOTE], reference: issue.helpUrl };
+}
+
+/** axe's color-contrast failure summary carries the measured values. */
+export function parseContrast(summary: string) {
+  const m =
+    /contrast of ([\d.]+) \(foreground color: (#[0-9a-f]{3,8}), background color: (#[0-9a-f]{3,8}).*?Expected contrast ratio of ([\d.]+:1)/is.exec(
+      summary,
+    );
+  return m ? { ratio: m[1], fg: m[2], bg: m[3], expected: m[4] } : null;
+}
+
+/** Nearest color to fg (same hue, darker or lighter) that meets the ratio against bg. */
+export function passingColor(fg: string, bg: string, ratio: number): string {
+  const f = hexToRgb(fg);
+  const b = hexToRgb(bg);
+  // Move toward black on light backgrounds, toward white on dark ones.
+  const target = luminance(b) > 0.18 ? [0, 0, 0] : [255, 255, 255];
+  for (let t = 0; t <= 1; t += 0.01) {
+    const mixed = f.map((v, i) => Math.round(v + (target[i] - v) * t));
+    if (contrast(mixed, b) >= ratio) return rgbToHex(mixed);
+  }
+  return rgbToHex(target);
+}
+
+function hexToRgb(hex: string): number[] {
+  let h = hex.replace("#", "").slice(0, 6);
+  if (h.length === 3) h = [...h].map((c) => c + c).join("");
+  return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+}
+
+function rgbToHex(rgb: number[]): string {
+  return "#" + rgb.map((v) => v.toString(16).padStart(2, "0")).join("");
+}
+
+function luminance(rgb: number[]): number {
+  const [r, g, b] = rgb.map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrast(a: number[], b: number[]): number {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+function cssSelector(issue: Issue): string {
+  const last = issue.path.split(" > ").pop() ?? "";
+  const scoped = issue.module?.startsWith(".") ? `${issue.module} ${last}` : last;
+  return scoped || "/* element */";
+}
+
+// ---------- alt text ----------
+
+const ALT_FIXES: Record<AltCheck, FixSuggestion> = {
+  missing: {
+    summary: "The image has no alt attribute, so screen readers announce the file name or nothing useful.",
+    steps: ["Add alt describing what the image shows or does, e.g. \"Team planning a website launch\". Use alt=\"\" only for decorative images."],
+  },
+  filename: {
+    summary: "The alt is the file name, which HubSpot fills in by default. It tells a screen reader user nothing.",
+    steps: [
+      "Replace it with a description of the image's content or purpose.",
+      "For a logo: the organisation's name, e.g. \"Salted Stone\". For an icon next to text: alt=\"\".",
+    ],
+  },
+  generic: {
+    summary: "The alt is a placeholder word like \"image\" or \"logo\".",
+    steps: ["Describe what this specific image shows, e.g. \"Acme Health logo\" instead of \"logo\"."],
+  },
+  "empty-linked": {
+    summary: "This image is the only content of a link and has empty alt, so the link has no name.",
+    steps: ["Set the alt to describe the link destination, e.g. \"Read the Acme case study\"."],
+  },
+  "too-long": {
+    summary: "The alt is over 150 characters. Long alt is tiring to listen to.",
+    steps: ["Keep alt to one short sentence. Move detail into a caption or the body text."],
+  },
+  redundant: {
+    summary: "The alt repeats the caption or heading next to it, so it's read twice.",
+    steps: ["Use alt=\"\" if the nearby text already describes the image, or describe something the text doesn't say."],
+  },
+};
+
+export function suggestAltFix(checks: AltCheck[]): FixSuggestion[] {
+  return checks.map((c) => ALT_FIXES[c]);
+}
+
+// ---------- links ----------
+
+export function suggestLinkFix(issue: LinkIssue): FixSuggestion {
+  const final = issue.status.hops.at(-1)?.url ?? issue.url;
+  const fixes: Record<LinkCheck, FixSuggestion> = {
+    broken: {
+      summary: `Link returns ${issue.status.finalStatus ?? issue.status.error}.`,
+      steps: ["Update the link to a live page, or add a redirect for the old URL in HubSpot URL redirects."],
+      snippet: { lang: "text", code: `Original URL,Redirect to\n${path(issue.url)},/` },
+    },
+    "redirect-chain": {
+      summary: `Link takes ${issue.status.hops.length - 1} redirect hops before landing.`,
+      steps: [
+        `Update the link to point straight at ${final}.`,
+        "Also update the earlier redirects in HubSpot so each one points directly to the final URL.",
+      ],
+      snippet: { lang: "text", code: `Original URL,Redirect to\n${path(issue.url)},${path(final)}` },
+    },
+    "redirect-to-dead": {
+      summary: `Link redirects to ${final}, which returns ${issue.status.finalStatus ?? issue.status.error}.`,
+      steps: ["Point the HubSpot redirect at a live page, and update the link itself."],
+    },
+    "http-internal": {
+      summary: "Internal link uses http://, adding a redirect hop and a mixed-content risk.",
+      steps: ["Change the link to https:// or a relative path."],
+    },
+    "not-checked": {
+      summary: "The site rate-limited the scanner (HTTP 429), so this link couldn't be checked.",
+      steps: ["Re-run the scan later, or allow-list the scanner's IP in Cloudflare."],
+    },
+  };
+  return fixes[issue.check];
+}
+
+function path(u: string): string {
+  try {
+    const url = new URL(u);
+    return url.pathname + url.search;
+  } catch {
+    return u;
+  }
+}
+
+// ---------- security ----------
+
+export function suggestSecurityFix(result: SecurityResult): FixSuggestion | null {
+  if (result.pass) return null;
+  return {
+    summary: `${result.name}: currently "${result.current}".`,
+    steps: [
+      `Set it to: ${result.recommended}.`,
+      `Where: ${result.fixLocation}.`,
+      ...(result.id === "header-csp"
+        ? ["Deploy as Content-Security-Policy-Report-Only first; HubSpot sites load scripts from many HubSpot and tracking domains."]
+        : []),
+      REVIEW_NOTE,
+    ],
+  };
+}

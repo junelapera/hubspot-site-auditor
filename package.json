@@ -1,0 +1,8 @@
+{
+  "name": "hubspot-site-auditor",
+  "private": true,
+  "scripts": {
+    "scan": "pnpm --filter worker scan",
+    "typecheck": "pnpm -r typecheck"
+  }
+}

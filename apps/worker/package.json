@@ -1,0 +1,25 @@
+{
+  "name": "worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "scan": "tsx src/cli.ts",
+    "start": "tsx --env-file-if-exists=.env src/worker.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "fast-xml-parser": "^5.11.2",
+    "p-limit": "^7.3.3",
+    "picomatch": "^4.0.7",
+    "playwright": "^1.64.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/picomatch": "^4.0.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
