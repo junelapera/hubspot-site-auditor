@@ -1,6 +1,7 @@
 import { dedupeIssues, namedModuleRate, summarizeModules } from "./aggregate.js";
 import { auditImages, type FlaggedImage } from "./checks/alt.js";
 import { auditInternalLinks, type LinkIssue } from "./checks/links.js";
+import { auditLibraries, checkLibraries, createDetector, loadRetireRepo, type JsLibrary } from "./checks/libraries.js";
 import {
   auditMixedContent,
   auditThirdPartyScripts,
@@ -11,7 +12,15 @@ import {
 } from "./checks/page-security.js";
 import { checkSecurity, type SecurityResult } from "./checks/security.js";
 import { crawlSitemap, type CrawlOptions } from "./crawl.js";
-import { suggestAltFix, suggestAxeFix, suggestLinkFix, suggestMixedContentFix, suggestSecurityFix, type FixSuggestion } from "./fixes.js";
+import {
+  suggestAltFix,
+  suggestAxeFix,
+  suggestLibraryFix,
+  suggestLinkFix,
+  suggestMixedContentFix,
+  suggestSecurityFix,
+  type FixSuggestion,
+} from "./fixes.js";
 import { scanPages } from "./scan.js";
 import type { Issue, ModuleSummary, PageResult } from "./types.js";
 
@@ -39,6 +48,8 @@ export interface AuditResult {
   security: (SecurityResult & { fix: FixSuggestion | null })[];
   mixedContent: (MixedContentIssue & { fix: FixSuggestion })[];
   scripts: ScriptDomain[];
+  /** Null when the Retire.js database couldn't be downloaded; the check is then left out. */
+  libraries: (JsLibrary & { fix: FixSuggestion | null })[] | null;
   stats: {
     pagesScanned: number;
     pagesFailed: number;
@@ -70,7 +81,9 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
   const crawlMs = mark();
   await hooks.onUrls?.(urls);
 
-  const pages = await scanPages(urls, { concurrency: input.concurrency, onPage: hooks.onPage });
+  // The Retire.js database is downloaded fresh each scan; if GitHub is down, scan without it.
+  const detector = await loadRetireRepo().then(createDetector, () => null);
+  const pages = await scanPages(urls, { concurrency: input.concurrency, onPage: hooks.onPage, detector: detector ?? undefined });
   const scanMs = mark();
 
   // Checks run against the host the pages actually live on (after any bare → www redirect).
@@ -83,7 +96,13 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
 
   await hooks.onStage?.("security");
   const mixedContent = auditMixedContent(pages);
-  const security = [...(await checkSecurity(siteHost)), checkMixedContent(mixedContent), checkCookies(pages)];
+  const libraries = detector ? auditLibraries(pages, detector) : null;
+  const security = [
+    ...(await checkSecurity(siteHost)),
+    checkMixedContent(mixedContent),
+    checkCookies(pages),
+    ...(libraries ? [checkLibraries(libraries)] : []),
+  ];
   const securityMs = mark();
 
   return {
@@ -97,6 +116,7 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
     security: security.map((s) => ({ ...s, fix: suggestSecurityFix(s) })),
     mixedContent: mixedContent.map((m) => ({ ...m, fix: suggestMixedContentFix(m) })),
     scripts: auditThirdPartyScripts(pages, siteHost),
+    libraries: libraries?.map((l) => ({ ...l, fix: suggestLibraryFix(l) })) ?? null,
     stats: {
       pagesScanned: pages.filter((p) => !p.error).length,
       pagesFailed: pages.filter((p) => p.error).length,

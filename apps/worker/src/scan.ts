@@ -3,8 +3,9 @@ import AxeBuilder from "@axe-core/playwright";
 import pLimit from "p-limit";
 import { chromium, type Browser } from "playwright";
 import { isRateLimited, retryDelay, sleep, USER_AGENT } from "./http.js";
+import type { LibraryDetector } from "./checks/libraries.js";
 import { isFirstParty, parseMixedContentMessage, parseSetCookie } from "./checks/page-security.js";
-import type { AxeFinding, CookieInfo, Impact, ImageInfo, InsecureResource, LinkInfo, Location, PageResult } from "./types.js";
+import type { AxeFinding, CookieInfo, DetectedLibrary, Impact, ImageInfo, InsecureResource, LinkInfo, Location, PageResult } from "./types.js";
 
 const INSPECT_SRC = readFileSync(new URL("./browser/inspect.js", import.meta.url), "utf8");
 
@@ -17,10 +18,16 @@ export interface ScanOptions {
   concurrency?: number;
   delayMs?: number;
   onPage?: (result: PageResult, done: number, total: number) => void;
+  /** Retire.js matcher; without it, libraries aren't checked. */
+  detector?: LibraryDetector;
 }
 
+/** Library matches per script URL, shared by every page in a scan so each script is checked once. */
+type LibraryCache = Map<string, Promise<DetectedLibrary[]>>;
+
 export async function scanPages(urls: string[], opts: ScanOptions = {}): Promise<PageResult[]> {
-  const { concurrency = 3, delayMs = 500, onPage } = opts;
+  const { concurrency = 3, delayMs = 500, onPage, detector } = opts;
+  const libraryCache: LibraryCache = new Map();
   const browser = await chromium.launch();
   const limit = pLimit(concurrency);
   let done = 0;
@@ -29,7 +36,7 @@ export async function scanPages(urls: string[], opts: ScanOptions = {}): Promise
     return await Promise.all(
       urls.map((url) =>
         limit(async () => {
-          const result = await scanPage(browser, url);
+          const result = await scanPage(browser, url, detector && { detector, cache: libraryCache });
           onPage?.(result, ++done, urls.length);
           await sleep(delayMs);
           return result;
@@ -41,15 +48,20 @@ export async function scanPages(urls: string[], opts: ScanOptions = {}): Promise
   }
 }
 
-export async function scanPage(browser: Browser, url: string): Promise<PageResult> {
+export async function scanPage(
+  browser: Browser,
+  url: string,
+  libraries?: { detector: LibraryDetector; cache: LibraryCache },
+): Promise<PageResult> {
   const context = await browser.newContext({ viewport: DESKTOP, userAgent: USER_AGENT });
   const page = await context.newPage();
-  const empty = { findings: [], images: [], links: [], insecure: [], cookies: [], scripts: [] };
+  const empty = { findings: [], images: [], links: [], insecure: [], cookies: [], scripts: [], libraries: [] };
 
   // What the browser saw while loading: mixed-content warnings, script requests, first-party Set-Cookie headers.
   const consoleInsecure: InsecureResource[] = [];
   const scripts = new Set<string>();
   const cookieReads: Promise<CookieInfo[]>[] = [];
+  const libraryReads: Promise<DetectedLibrary[]>[] = [];
   const siteHost = new URL(url).hostname;
   page.on("console", (msg) => {
     const found = parseMixedContentMessage(msg.text());
@@ -59,6 +71,22 @@ export async function scanPage(browser: Browser, url: string): Promise<PageResul
     if (req.resourceType() === "script") scripts.add(req.url());
   });
   page.on("response", (res) => {
+    if (libraries && res.request().resourceType() === "script" && res.ok()) {
+      const scriptUrl = res.url();
+      let found = libraries.cache.get(scriptUrl);
+      if (!found) {
+        const fromUrl = libraries.detector.fromUrl(scriptUrl);
+        // Matched by URL or file name, or else by the body the browser already downloaded.
+        found = fromUrl.length
+          ? Promise.resolve(fromUrl)
+          : res
+              .text()
+              .then((body) => libraries.detector.fromContent(scriptUrl, body))
+              .catch(() => []);
+        libraries.cache.set(scriptUrl, found);
+      }
+      libraryReads.push(found);
+    }
     let host: string;
     try {
       host = new URL(res.url()).hostname;
@@ -118,6 +146,7 @@ export async function scanPage(browser: Browser, url: string): Promise<PageResul
       insecure: [...inspected.insecure, ...consoleInsecure],
       cookies: (await Promise.all(cookieReads)).flat(),
       scripts: [...scripts],
+      libraries: (await Promise.all(libraryReads)).flat(),
     };
   } catch (err) {
     return { url, status: null, redirected: false, error: (err as Error).message, ...empty };

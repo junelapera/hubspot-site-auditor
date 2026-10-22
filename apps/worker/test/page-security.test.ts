@@ -23,6 +23,7 @@ const page = (url: string, over: Partial<PageResult>): PageResult => ({
   insecure: [],
   cookies: [],
   scripts: [],
+  libraries: [],
   ...over,
 });
 

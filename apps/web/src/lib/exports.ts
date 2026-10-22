@@ -1,9 +1,9 @@
 // CSV exports for a run. Pure functions over database rows so they can be tested.
 import { toCsv, type Cell } from "./csv";
 import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel } from "./format";
-import type { Fix, Impact, ImageRow, IssueRow, LinkRow, MixedContentRow, ModuleSummaryRow, Scope, ScriptDomainRow, SecurityRow } from "./types";
+import type { Fix, Impact, ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ModuleSummaryRow, Scope, ScriptDomainRow, SecurityRow } from "./types";
 
-export const EXPORT_KINDS = ["issues", "images", "links", "security", "mixed-content", "scripts"] as const;
+export const EXPORT_KINDS = ["issues", "images", "links", "security", "mixed-content", "scripts", "libraries"] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];
 
 const MAX_PAGES_LISTED = 50;
@@ -152,6 +152,23 @@ export function scriptsCsv(rows: ScriptDomainRow[]): string {
   return toCsv(
     ["Domain", "Pages", "Example scripts", "Found on"],
     rows.map((s): Cell[] => [s.domain, s.pages.length, s.urls.join("\n"), pageList(s.pages)]),
+  );
+}
+
+export function librariesCsv(rows: JsLibraryRow[]): string {
+  return toCsv(
+    ["Library", "Version", "Worst severity", "Known vulnerabilities", "CVEs", "Script URLs", "Pages", "Suggested fix", "Found on"],
+    rows.map((l): Cell[] => [
+      l.component,
+      l.version,
+      l.severity ?? "None known",
+      l.vulnerabilities.map((v) => `${v.severity}: ${v.summary}`).join("\n"),
+      l.vulnerabilities.flatMap((v) => v.cves).join(", "),
+      l.urls.join("\n"),
+      l.pages.length,
+      l.fix ? fixText(l.fix) : "",
+      pageList(l.pages),
+    ]),
   );
 }
 

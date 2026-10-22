@@ -14,7 +14,8 @@ export type SecurityCheckId =
   | "version-leak"
   // From the scanned pages (checks/page-security.ts):
   | "mixed-content"
-  | "cookies";
+  | "cookies"
+  | "js-libraries";
 
 export interface SecurityResult {
   id: SecurityCheckId;

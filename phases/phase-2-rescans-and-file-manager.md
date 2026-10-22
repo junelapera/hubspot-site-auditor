@@ -1,6 +1,6 @@
 # Phase 2 — Re-scans and File Manager
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, and most security checks done · Depends on: [Phase 1](phase-1-mvp.md)
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, and security checks done · Depends on: [Phase 1](phase-1-mvp.md)
 
 ## Goal
 
@@ -73,7 +73,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 - [x] Mixed content: `http://` image, script, or font on an HTTPS page, mapped to module like a11y issues
 - [x] Cookies: first-party cookie missing `Secure`, `HttpOnly`, or `SameSite`
-- [ ] Outdated JS libraries with known CVEs (Retire.js)
+- [x] Outdated JS libraries with known CVEs (Retire.js)
 - [x] Third-party scripts: list every external script domain; flag new ones since the last run (needs run history)
 
 ### 6. Fix suggestions (new templates)

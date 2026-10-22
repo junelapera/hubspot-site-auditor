@@ -1,6 +1,6 @@
 # Status
 
-Last updated: Oct 22, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 in progress (comparison, scores, mixed content / cookies / third-party scripts done)**
+Last updated: Oct 22, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 in progress (comparison, scores, all security checks done)**
 
 The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This file is the short version: what works, what's next, and what's blocking.
 
@@ -17,9 +17,10 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Run comparison (Phase 2) | Compare any two scans of a site by issue fingerprint: fixed / new / still open / not rechecked. Report page shows the change since the previous scan; full comparison at `/runs/:id/compare`. Issues can be marked won't fix or false positive with a note; marks are per site, hide the issue in every scan (toggle to show), and keep it out of the issues CSV. Verified: two identical scans show 0 fixed, 0 new. |
 | Scores (Phase 2) | Accessibility score (0–100) and security grade (A–F) per scan, on the report (with change since the previous scan and how they're worked out) and next to every scan in the site's history. Computed when shown, not stored, so marks count and older scans have scores too. Logic in `apps/web/src/lib/scores.ts`. saltedstone.com: 91 and C. |
 | Page security checks (Phase 2) | Mixed content (http:// resources on HTTPS pages, from the markup and Chrome's console, mapped to modules; blocked vs upgraded), first-party cookie flags (Set-Cookie headers only; names, never values), and third-party script domains with "New" since the previous scan. Mixed content and cookies are security-check rows, so they count toward the grade. Shown on the Security tab; CSVs for both lists. Verified on saltedstone.com (14 script domains, 2 cookies OK, no mixed content) and badssl.com's mixed-content test pages. |
+| JS library check (Phase 2) | Every script the pages loaded is matched against the Retire.js database (URL, file name, content, hash; bodies come from the page load, so no extra requests). Vulnerable versions fail the "JavaScript libraries" check (10 points of the grade) and are listed on the Security tab with CVEs and a fix; CSV too. Scripts HubSpot serves itself get a "nothing to change in the theme" fix. saltedstone.com: moment.js 2.30.1 (medium CVE) inside HubSpot's forms script, so the grade dropped from C to D. |
 | Look and feel | Salted Stone brand from saltedstone.com: cream / ink palette, logo and S² favicon, serif headings, mono uppercase labels, orange pill buttons, brand-colored severity chips, chevron icons, brand-styled dropdowns (Radix Select). Every color pair contrast-checked. |
 | Accessibility of the app itself | axe (WCAG 2.2 AA) passes on all 12 screens. No sideways scrolling down to 320px wide. |
-| Tests | 34 worker + 20 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
+| Tests | 39 worker + 20 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
 
@@ -37,13 +38,13 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - Production is current: https://hubspot-site-auditor.vercel.app (latest: dates in the viewer's time zone; brand dropdown on the compare page; scan comparison and won't-fix marking).
 - Local: `pnpm dev` (web on :3000) and, optionally, `pnpm worker`. If CSS looks stale after a `pnpm build`, stop the dev server, delete `apps/web/.next`, and start it again.
 - Waiting on: 3 client domains (and SecurityScorecard reports if available) for the Phase 1 acceptance runs.
-- Ready to start without input: the rest of Phase 2 (external links and broken anchors, outdated JS libraries via Retire.js, form check, rule view).
+- Ready to start without input: the rest of Phase 2 (external links and broken anchors, form check, rule view, mobile-width scan, sampling mode).
 
 ## Next
 
 1. **Acceptance runs** on 3 client sites (ideally different themes): named-module rate (90%+), alt-text false positives (under 10%), a SecurityScorecard comparison (90%+ match), a 200-page timing (under 15 min), and a test import of the issues CSV into Teamwork. Needs: the 3 domains, and SecurityScorecard reports if available.
 2. **Custom SMTP** in Supabase Auth (optional): only needed for "Forgot password?" emails. Invites don't use email.
-3. **Phase 2, next items:** external links and broken anchors, outdated JS libraries (Retire.js), File Manager pass, form check, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
+3. **Phase 2, next items:** external links and broken anchors, File Manager pass, form check, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
 
 ## Known issues and decisions
 
@@ -68,6 +69,9 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - **Cookie check covers Set-Cookie headers only.** Cookies set by JavaScript (HubSpot analytics, consent banners) can't be HttpOnly, so they aren't checked. Values are never stored.
 - **Implicit favicons aren't checked for mixed content.** A `/favicon.ico` that redirects to http:// (no `<link rel=icon>`) isn't reported.
 - **"New" third-party scripts** only show when the previous scan also recorded scripts (scans from Oct 22, 8:40 pm on).
+
+- **Retire.js database is downloaded each scan** from raw.githubusercontent.com (~600 KB). If that fails, the scan carries on and the library check shows "not checked" (no security row, so the grade isn't affected). Retire.js "func" detectors (code run in the page) aren't used, so a library only defined in inline code isn't found.
+- **HubSpot's own scripts count toward the grade.** A vulnerable library inside HubSpot's forms/chat scripts can't be fixed by the client but is still flagged, as external scanners would. Revisit if this makes grades unhelpful.
 
 ## Open questions
 

@@ -38,7 +38,7 @@ const result = await runAudit(
   },
 );
 
-const { stats, modules, issues, images, links, security, mixedContent, scripts } = result;
+const { stats, modules, issues, images, links, security, mixedContent, scripts, libraries } = result;
 console.log(`\n${stats.rawFindings} page-level findings → ${issues.length} unique issues in ${modules.length} groups`);
 const secs = (ms: number) => `${(ms / 1000).toFixed(0)}s`;
 console.log(
@@ -93,6 +93,17 @@ console.table(
 
 console.log(`\nThird-party script domains: ${scripts.length}`);
 console.table(scripts.map((s) => ({ Domain: s.domain, Pages: s.pages.length, Example: s.urls[0]?.slice(0, 70) })));
+
+console.log(libraries ? `\nJavaScript libraries: ${libraries.length}` : "\nJavaScript libraries: not checked (Retire.js database unavailable)");
+console.table(
+  (libraries ?? []).map((l) => ({
+    Library: `${l.component} ${l.version}`,
+    Severity: l.severity ?? "",
+    Vulnerabilities: l.vulnerabilities.length,
+    Pages: l.pages.length,
+    Example: l.urls[0]?.slice(0, 70),
+  })),
+);
 
 mkdirSync("scans", { recursive: true });
 const out = `scans/${result.siteHost}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;

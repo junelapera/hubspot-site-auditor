@@ -4,6 +4,7 @@ import {
   exportFilename,
   imagesCsv,
   issuesCsv,
+  librariesCsv,
   linksCsv,
   mixedContentCsv,
   scriptsCsv,
@@ -12,7 +13,7 @@ import {
 } from "@/lib/exports";
 import { createClient } from "@/lib/supabase/server";
 import { summarizeModules } from "@/lib/summary";
-import type { ImageRow, IssueRow, LinkRow, MixedContentRow, ScriptDomainRow, SecurityRow } from "@/lib/types";
+import type { ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ScriptDomainRow, SecurityRow } from "@/lib/types";
 
 /** GET /runs/:id/export/:kind — CSV download, read as the signed-in user (RLS applies). */
 export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/export/[kind]">) {
@@ -68,6 +69,11 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/e
     case "scripts": {
       const { data } = await supabase.from("script_domains").select("*").eq("run_id", id).order("id").returns<ScriptDomainRow[]>();
       csv = scriptsCsv(data ?? []);
+      break;
+    }
+    case "libraries": {
+      const { data } = await supabase.from("js_libraries").select("*").eq("run_id", id).order("id").returns<JsLibraryRow[]>();
+      csv = librariesCsv(data ?? []);
       break;
     }
   }

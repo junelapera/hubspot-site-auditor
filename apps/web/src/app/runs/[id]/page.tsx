@@ -132,6 +132,7 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
                     { kind: "scripts", label: "Third-party scripts" },
                   ]
                 : []),
+              ...(s?.jsLibraries != null ? [{ kind: "libraries", label: "JS libraries" }] : []),
             ].map((e) => (
               <a
                 key={e.kind}

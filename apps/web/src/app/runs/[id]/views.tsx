@@ -7,7 +7,7 @@ import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT } fr
 import { previousRun } from "@/lib/compare-data";
 import { createClient } from "@/lib/supabase/server";
 import { moduleKey, summarizeModules } from "@/lib/summary";
-import type { Impact, ImageRow, IssueMark, IssueRow, LinkRow, MixedContentRow, PageRow, Run, ScriptDomainRow, SecurityRow } from "@/lib/types";
+import type { Impact, ImageRow, IssueMark, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, PageRow, Run, ScriptDomainRow, SecurityRow } from "@/lib/types";
 
 const IMPACT_ORDER: Record<Impact, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 };
 
@@ -284,10 +284,11 @@ export async function LinksView({ runId }: ViewProps) {
 
 export async function SecurityView({ runId }: ViewProps) {
   const supabase = await createClient();
-  const [{ data: checks }, { data: mixed }, { data: scripts }, { data: run }] = await Promise.all([
+  const [{ data: checks }, { data: mixed }, { data: scripts }, { data: libraries }, { data: run }] = await Promise.all([
     supabase.from("security_checks").select("*").eq("run_id", runId).order("id").returns<SecurityRow[]>(),
     supabase.from("mixed_content").select("*").eq("run_id", runId).order("id").returns<MixedContentRow[]>(),
     supabase.from("script_domains").select("*").eq("run_id", runId).order("id").returns<ScriptDomainRow[]>(),
+    supabase.from("js_libraries").select("*").eq("run_id", runId).order("id").returns<JsLibraryRow[]>(),
     supabase.from("runs").select("site_id, created_at, summary").eq("id", runId).maybeSingle<Pick<Run, "site_id" | "created_at" | "summary">>(),
   ]);
   if (!checks?.length) return <Empty>No security results for this scan.</Empty>;
@@ -367,6 +368,73 @@ export async function SecurityView({ runId }: ViewProps) {
                   </div>
                 </details>
               ))}
+            </>
+          )}
+        </section>
+      )}
+
+      {run?.summary?.jsLibraries !== undefined && (
+        <section aria-labelledby="libraries-heading" className="space-y-2">
+          <h2 id="libraries-heading" className="font-display text-2xl font-medium">JavaScript libraries</h2>
+          {run.summary.jsLibraries === null ? (
+            <Empty>Not checked: the Retire.js vulnerability database couldn&apos;t be downloaded during this scan.</Empty>
+          ) : !libraries?.length ? (
+            <Empty>No known libraries found in the scripts the scanned pages loaded.</Empty>
+          ) : (
+            <>
+              <p className="text-sm text-ink/75">
+                Libraries found in the scripts the pages loaded, checked against the{" "}
+                <a href="https://github.com/RetireJS/retire.js" target="_blank" rel="noreferrer" className="link">Retire.js</a> database.
+              </p>
+              {libraries.map((l) =>
+                l.severity ? (
+                  <details key={l.id} className="group card">
+                    <summary className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-4 py-3 text-sm">
+                      <DisclosureChevron />
+                      <Badge tone={l.severity === "critical" || l.severity === "high" ? "critical" : l.severity === "medium" ? "serious" : "minor"}>
+                        {l.severity}
+                      </Badge>
+                      <span className="min-w-0 flex-1 font-medium text-ink">
+                        {l.component} <span className="font-mono text-xs">{l.version}</span>
+                      </span>
+                      <span className="text-xs text-ink/70">
+                        {l.vulnerabilities.length} known · {l.pages.length} {l.pages.length === 1 ? "page" : "pages"}
+                      </span>
+                    </summary>
+                    <div className="grid gap-3 border-t border-ink/30 p-4 lg:grid-cols-2">
+                      <div className="space-y-2 text-xs">
+                        <ul className="space-y-1 text-ink/85">
+                          {l.vulnerabilities.map((v, i) => (
+                            <li key={i}>
+                              <span className="font-medium">{v.severity}:</span> {v.summary}
+                              {v.cves.length > 0 && <span className="font-mono text-ink/70"> ({v.cves.join(", ")})</span>}
+                            </li>
+                          ))}
+                        </ul>
+                        <h4 className="pt-2 font-medium text-ink/70">Loaded from</h4>
+                        <ul className="space-y-0.5 font-mono text-ink/85">
+                          {l.urls.map((u) => (
+                            <li key={u} className="break-all">{u}</li>
+                          ))}
+                        </ul>
+                        <h4 className="pt-2 font-medium text-ink/70">Found on</h4>
+                        <PageList pages={l.pages} />
+                      </div>
+                      {l.fix && <FixPanel fix={l.fix} />}
+                    </div>
+                  </details>
+                ) : null,
+              )}
+              {libraries.some((l) => !l.severity) && (
+                <p className="text-sm text-ink/85">
+                  No known vulnerabilities:{" "}
+                  {libraries
+                    .filter((l) => !l.severity)
+                    .map((l) => `${l.component} ${l.version}`)
+                    .join(", ")}
+                  .
+                </p>
+              )}
             </>
           )}
         </section>

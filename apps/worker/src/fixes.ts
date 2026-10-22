@@ -2,6 +2,7 @@
 // in Claude API snippets tailored to the module's actual code.
 import type { AltCheck } from "./checks/alt.js";
 import type { LinkCheck, LinkIssue } from "./checks/links.js";
+import type { JsLibrary } from "./checks/libraries.js";
 import type { MixedContentIssue } from "./checks/page-security.js";
 import type { SecurityResult } from "./checks/security.js";
 import type { Issue } from "./types.js";
@@ -320,6 +321,52 @@ export function suggestLinkFix(issue: LinkIssue): FixSuggestion {
     },
   };
   return fixes[issue.check];
+}
+
+// ---------- JavaScript libraries ----------
+
+// Scripts HubSpot serves itself (forms, chat, banner, analytics): not in the theme.
+const HUBSPOT_SCRIPT_HOST = /(^|\.)(hubspot|hsappstatic|hs-scripts|hsforms|hs-analytics|hs-banner|hsadspixel|usemessages|hscollectedforms)\.(com|net)$/;
+
+export function isHubSpotScript(url: string): boolean {
+  try {
+    const u = new URL(url);
+    return u.pathname.startsWith("/_hcms/") || HUBSPOT_SCRIPT_HOST.test(u.hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function suggestLibraryFix(lib: JsLibrary): FixSuggestion | null {
+  if (!lib.severity) return null;
+  const cveCount = lib.vulnerabilities.reduce((n, v) => n + v.cves.length, 0);
+  const summary =
+    `${lib.component} ${lib.version} has ${lib.vulnerabilities.length} known ${lib.vulnerabilities.length === 1 ? "vulnerability" : "vulnerabilities"}` +
+    (cveCount ? ` (${cveCount} CVE${cveCount === 1 ? "" : "s"})` : "") +
+    ".";
+  const reference = lib.vulnerabilities.find((v) => v.info)?.info;
+
+  if (lib.urls.every(isHubSpotScript)) {
+    return {
+      summary: `${summary} It's bundled in a script HubSpot serves (forms, chat, banner or analytics), not in the theme.`,
+      steps: [
+        "Nothing to change in the theme or modules: HubSpot updates these scripts itself.",
+        "For a SecurityScorecard or client response, note that the library is part of HubSpot's platform code, and raise it with HubSpot support if it persists.",
+        REVIEW_NOTE,
+      ],
+      reference,
+    };
+  }
+  return {
+    summary,
+    steps: [
+      `Update ${lib.component} to the latest version, then check the pages that use it still work (jQuery majors in particular change behaviour; jQuery Migrate helps).`,
+      "If the theme bundles it, update the file in the theme. If a module or embed loads it, update that module's or embed's code.",
+      "If nothing on the site uses it any more, remove it.",
+      REVIEW_NOTE,
+    ],
+    reference,
+  };
 }
 
 // ---------- Mixed content ----------

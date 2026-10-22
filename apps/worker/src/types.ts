@@ -46,6 +46,13 @@ export interface CookieInfo {
   sameSite: string | null;
 }
 
+/** A JavaScript library version found in a script the page loaded (Retire.js database). */
+export interface DetectedLibrary {
+  component: string;
+  version: string;
+  url: string;
+}
+
 /** One failing axe node on one page. */
 export interface AxeFinding {
   ruleId: string;
@@ -72,6 +79,7 @@ export interface PageResult {
   cookies: CookieInfo[];
   /** Every script URL the page requested, first- and third-party. */
   scripts: string[];
+  libraries: DetectedLibrary[];
 }
 
 /** A deduplicated issue: same rule + same element path + same module, across pages. */

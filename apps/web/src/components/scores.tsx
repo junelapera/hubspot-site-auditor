@@ -68,7 +68,7 @@ export function ScoreCards({ scores, previous }: { scores: RunScores; previous?:
             {/* Keep in step with SECURITY_PENALTY in lib/scores.ts. */}
             <strong>Security grade:</strong> 100 minus points for each failed check: {SECURITY_PENALTY["tls-legacy"]} each for old TLS
             versions and certificate expiry; {SECURITY_PENALTY.hsts} each for the HTTPS redirect, HSTS, Content-Security-Policy,
-            X-Frame-Options and mixed content; {SECURITY_PENALTY["version-leak"]} for each other check. A is 90 or more, B 80+, C 70+, D 60+, otherwise F.
+            X-Frame-Options, mixed content and vulnerable JavaScript libraries; {SECURITY_PENALTY["version-leak"]} for each other check. A is 90 or more, B 80+, C 70+, D 60+, otherwise F.
             It&apos;s our own measure from passive checks, not a SecurityScorecard grade.
           </p>
         </div>

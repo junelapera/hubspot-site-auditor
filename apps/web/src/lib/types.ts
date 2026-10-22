@@ -41,6 +41,9 @@ export interface RunSummary {
   /** Missing on scans from before these checks existed. */
   mixedContent?: number;
   scriptDomains?: number;
+  /** null: the Retire.js database couldn't be downloaded, so libraries weren't checked. */
+  jsLibraries?: number | null;
+  jsLibrariesVulnerable?: number | null;
 }
 
 export interface Run {
@@ -148,6 +151,17 @@ export interface MixedContentRow {
 export interface ScriptDomainRow {
   id: number;
   domain: string;
+  urls: string[];
+  pages: string[];
+}
+
+export interface JsLibraryRow {
+  id: number;
+  component: string;
+  version: string;
+  severity: "low" | "medium" | "high" | "critical" | null;
+  vulnerabilities: { severity: string; summary: string; cves: string[]; info: string }[];
+  fix: Fix | null;
   urls: string[];
   pages: string[];
 }
