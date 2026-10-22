@@ -151,6 +151,7 @@ The web app follows the Salted Stone look from saltedstone.com. Brand tokens (co
 - Text on any brand color is ink; brand orange and red are never used as text on cream.
 - Focus rings are ink.
 - Icons come from `lucide-react` (chevrons in `apps/web/src/components/chevron.tsx`), not text arrows.
+- Dropdowns use Radix Select styled with the brand (`apps/web/src/components/scan-select.tsx`), not native `<select>`, so the open list matches the app. Radix handles keyboard, type-ahead and screen-reader roles.
 - Headings use New Spirit Condensed when the Adobe Fonts kit allows the domain, otherwise Fraunces.
 
 ### Checks

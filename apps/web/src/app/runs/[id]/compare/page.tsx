@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/badge";
 import { BackChevron, DisclosureChevron } from "@/components/chevron";
+import { ScanSelect } from "@/components/scan-select";
 import type { ComparedIssue } from "@/lib/compare";
 import { loadComparison, previousRun } from "@/lib/compare-data";
 import { MARK_LABEL, moduleLabel } from "@/lib/format";
@@ -76,13 +77,16 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
       <form method="get" className="card flex flex-wrap items-end gap-3 p-4">
         <div className="min-w-64 flex-1">
           <label htmlFor="with" className="label">Compare this scan with</label>
-          <select id="with" name="with" defaultValue={base.id} className="input mt-1">
-            {others?.map((r) => (
-              <option key={r.id} value={r.id}>
-                {when(r.created_at)} · {r.summary?.pagesScanned ?? "?"} pages · {r.summary?.issues ?? "?"} issues
-              </option>
-            ))}
-          </select>
+          <ScanSelect
+            id="with"
+            name="with"
+            defaultValue={base.id}
+            options={(others ?? []).map((r) => ({
+              value: r.id,
+              label: when(r.created_at),
+              detail: `${r.summary?.pagesScanned ?? "?"} pages · ${r.summary?.issues ?? "?"} issues`,
+            }))}
+          />
         </div>
         <button type="submit" className="btn btn-secondary">Compare</button>
       </form>
