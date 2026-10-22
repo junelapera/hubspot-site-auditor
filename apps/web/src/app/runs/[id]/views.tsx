@@ -1,15 +1,14 @@
+import Link from "next/link";
 import { Badge } from "@/components/badge";
 import { DisclosureChevron, NextChevron } from "@/components/chevron";
 import { FixPanel } from "@/components/fix-panel";
+import { MarkControl } from "@/components/mark-control";
 import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
-import type { Impact, ImageRow, IssueRow, LinkRow, ModuleSummaryRow, PageRow, SecurityRow } from "@/lib/types";
+import { moduleKey, summarizeModules } from "@/lib/summary";
+import type { Impact, ImageRow, IssueMark, IssueRow, LinkRow, PageRow, SecurityRow } from "@/lib/types";
 
 const IMPACT_ORDER: Record<Impact, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 };
-
-function groupKey(i: { scope: string; module: string | null }) {
-  return `${i.scope}:${i.module ?? ""}`;
-}
 
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="card p-6 text-sm text-ink/75">{children}</p>;
@@ -32,29 +31,54 @@ function PageList({ pages, max = 10 }: { pages: string[]; max?: number }) {
 
 // ---------- Modules (default) ----------
 
-export async function ModulesView({ runId }: { runId: string }) {
+export interface ViewProps {
+  runId: string;
+  siteId: string;
+  /** Include issues marked won't fix / false positive. */
+  showHidden: boolean;
+}
+
+async function issuesWithMarks(runId: string, siteId: string) {
   const supabase = await createClient();
-  const [{ data: modules }, { data: issues }] = await Promise.all([
-    supabase.from("module_summary").select("*").eq("run_id", runId).order("weight", { ascending: false }).returns<ModuleSummaryRow[]>(),
+  const [{ data: issues }, { data: marks }] = await Promise.all([
     supabase.from("issues").select("*").eq("run_id", runId).returns<IssueRow[]>(),
+    supabase.from("issue_marks").select("*").eq("site_id", siteId).returns<IssueMark[]>(),
   ]);
-  if (!modules?.length) return <Empty>No accessibility issues found on the scanned pages.</Empty>;
+  const markByFp = new Map((marks ?? []).map((m) => [m.fingerprint, m]));
+  return { issues: issues ?? [], markByFp };
+}
+
+export async function ModulesView({ runId, siteId, showHidden }: ViewProps) {
+  const { issues, markByFp } = await issuesWithMarks(runId, siteId);
+  if (!issues.length) return <Empty>No accessibility issues found on the scanned pages.</Empty>;
+
+  const hiddenCount = issues.filter((i) => markByFp.has(i.fingerprint)).length;
+  const visible = showHidden ? issues : issues.filter((i) => !markByFp.has(i.fingerprint));
+  const modules = summarizeModules(visible, runId);
 
   const byGroup = new Map<string, IssueRow[]>();
-  for (const issue of issues ?? []) {
-    const key = groupKey(issue);
-    byGroup.set(key, [...(byGroup.get(key) ?? []), issue]);
-  }
+  for (const issue of visible) byGroup.set(moduleKey(issue), [...(byGroup.get(moduleKey(issue)) ?? []), issue]);
 
   return (
     <section aria-label="Issues by module" className="space-y-2">
-      <p className="text-sm text-ink/75">Sorted by impact: the first row is the fix that clears the most issues.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-ink/75">Sorted by impact: the first row is the fix that clears the most issues.</p>
+        {hiddenCount > 0 && (
+          <Link
+            href={`/runs/${runId}?view=modules${showHidden ? "" : "&hidden=1"}`}
+            className="btn btn-secondary btn-sm"
+          >
+            {showHidden ? "Hide" : "Show"} {hiddenCount} marked {hiddenCount === 1 ? "issue" : "issues"}
+          </Link>
+        )}
+      </div>
+      {!modules.length && <Empty>Every issue in this scan is marked won&apos;t fix or false positive.</Empty>}
       {modules.map((m) => {
-        const group = (byGroup.get(groupKey(m)) ?? []).sort(
+        const group = (byGroup.get(moduleKey(m)) ?? []).sort(
           (a, b) => IMPACT_ORDER[a.impact] - IMPACT_ORDER[b.impact] || b.pages.length - a.pages.length,
         );
         return (
-          <details key={groupKey(m)} className="group card">
+          <details key={moduleKey(m)} className="group card">
             <summary className="grid cursor-pointer select-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3 sm:grid-cols-[minmax(0,2fr)_6rem_6rem_7rem_minmax(0,2fr)]">
               <span className="flex items-start gap-2">
                 <DisclosureChevron className="mt-0.5" />
@@ -70,7 +94,7 @@ export async function ModulesView({ runId }: { runId: string }) {
             </summary>
             <div className="space-y-4 border-t border-ink/30 p-4">
               {group.map((issue) => (
-                <IssueDetail key={issue.id} issue={issue} />
+                <IssueDetail key={issue.id} issue={issue} siteId={siteId} mark={markByFp.get(issue.fingerprint)} />
               ))}
             </div>
           </details>
@@ -80,7 +104,7 @@ export async function ModulesView({ runId }: { runId: string }) {
   );
 }
 
-function IssueDetail({ issue }: { issue: IssueRow }) {
+function IssueDetail({ issue, siteId, mark }: { issue: IssueRow; siteId: string; mark?: IssueMark }) {
   return (
     <article className="space-y-3 rounded-lg border border-ink/30 bg-paper p-3">
       <header className="flex flex-wrap items-center gap-2">
@@ -101,22 +125,24 @@ function IssueDetail({ issue }: { issue: IssueRow }) {
         </div>
         <FixPanel fix={issue.fix} />
       </div>
+      <MarkControl siteId={siteId} fingerprint={issue.fingerprint} mark={mark} />
     </article>
   );
 }
 
 // ---------- Pages ----------
 
-export async function PagesView({ runId }: { runId: string }) {
+export async function PagesView({ runId, siteId }: ViewProps) {
   const supabase = await createClient();
-  const [{ data: pages }, { data: issues }] = await Promise.all([
+  const [{ data: pages }, { issues: allIssues, markByFp }] = await Promise.all([
     supabase.from("pages").select("*").eq("run_id", runId).order("url").returns<PageRow[]>(),
-    supabase.from("issues").select("id, rule_id, impact, help, scope, module, pages").eq("run_id", runId).returns<IssueRow[]>(),
+    issuesWithMarks(runId, siteId),
   ]);
+  const issues = allIssues.filter((i) => !markByFp.has(i.fingerprint));
   if (!pages?.length) return <Empty>No pages in this scan.</Empty>;
 
   const issuesByPage = new Map<string, IssueRow[]>();
-  for (const issue of issues ?? []) {
+  for (const issue of issues) {
     for (const url of issue.pages) issuesByPage.set(url, [...(issuesByPage.get(url) ?? []), issue]);
   }
   const rows = pages
@@ -156,7 +182,7 @@ export async function PagesView({ runId }: { runId: string }) {
 
 // ---------- Images ----------
 
-export async function ImagesView({ runId }: { runId: string }) {
+export async function ImagesView({ runId }: ViewProps) {
   const supabase = await createClient();
   const { data: images } = await supabase.from("images").select("*").eq("run_id", runId).returns<ImageRow[]>();
   if (!images?.length) return <Empty>No alt-text problems found.</Empty>;
@@ -207,7 +233,7 @@ export async function ImagesView({ runId }: { runId: string }) {
 
 // ---------- Links ----------
 
-export async function LinksView({ runId }: { runId: string }) {
+export async function LinksView({ runId }: ViewProps) {
   const supabase = await createClient();
   const { data: links } = await supabase.from("links").select("*").eq("run_id", runId).returns<LinkRow[]>();
   if (!links?.length) return <Empty>No broken internal links or redirect chains found.</Empty>;
@@ -255,7 +281,7 @@ export async function LinksView({ runId }: { runId: string }) {
 
 // ---------- Security ----------
 
-export async function SecurityView({ runId }: { runId: string }) {
+export async function SecurityView({ runId }: ViewProps) {
   const supabase = await createClient();
   const { data: checks } = await supabase.from("security_checks").select("*").eq("run_id", runId).order("id").returns<SecurityRow[]>();
   if (!checks?.length) return <Empty>No security results for this scan.</Empty>;

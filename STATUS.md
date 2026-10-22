@@ -1,6 +1,6 @@
 # Status
 
-Last updated: Oct 22, 2026 · Current phase: **Phase 1 — MVP: everything built and deployed; acceptance runs remaining**
+Last updated: Oct 22, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 started (run comparison done)**
 
 The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This file is the short version: what works, what's next, and what's blocking.
 
@@ -14,9 +14,10 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Web app | Invite-only accounts (@saltedstone.com): members create one-time invite links on the Team page, no email needed; email + password sign-in; sites, run a scan with live progress, report with Modules / Pages / Images / Links / Security tabs and copyable fixes. Deployed to Vercel; pushes to `main` deploy production. "Run scan" in production verified: the worker started 47s after the click. |
 | Worker hosting | GitHub Actions workflow (`scan.yml`): on dispatch, by hand, and every 15 min. Verified from the app's "Run scan" button: a 5-page scan started 42s after the click (Chromium cached) and finished 15s later. Public log shows run IDs only. |
 | CSV exports | Issues (one row per module + rule, Teamwork / Jira columns), images, links, security. Download buttons on every report. Formula-injection safe, UTF-8 BOM for Excel. |
+| Run comparison (Phase 2) | Compare any two scans of a site by issue fingerprint: fixed / new / still open / not rechecked. Report page shows the change since the previous scan; full comparison at `/runs/:id/compare`. Issues can be marked won't fix or false positive with a note; marks are per site, hide the issue in every scan (toggle to show), and keep it out of the issues CSV. Verified: two identical scans show 0 fixed, 0 new. |
 | Look and feel | Salted Stone brand from saltedstone.com: cream / ink palette, logo and S² favicon, serif headings, mono uppercase labels, orange pill buttons, brand-colored severity chips, chevron icons. Every color pair contrast-checked. |
 | Accessibility of the app itself | axe (WCAG 2.2 AA) passes on all 12 screens. No sideways scrolling down to 320px wide. |
-| Tests | 28 worker + 9 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
+| Tests | 28 worker + 16 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
 
@@ -33,7 +34,7 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 
 1. **Acceptance runs** on 3 client sites (ideally different themes): named-module rate (90%+), alt-text false positives (under 10%), a SecurityScorecard comparison (90%+ match), a 200-page timing (under 15 min), and a test import of the issues CSV into Teamwork. Needs: the 3 domains, and SecurityScorecard reports if available.
 2. **Custom SMTP** in Supabase Auth (optional): only needed for "Forgot password?" emails. Invites don't use email.
-3. **Phase 2 planning** once acceptance results are in: [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
+3. **Phase 2, next items:** accessibility score and security grade per run; then File Manager pass, form check, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
 
 ## Known issues and decisions
 
@@ -41,6 +42,8 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - **Link check skips exact sitemap URLs.** HubSpot builds the sitemap from published pages, so those are treated as live. This cut the link stage from 191s to 6s on a 10-page run. Near-matches (trailing slash, `http`) are still requested.
 - **Fix suggestions are stored at scan time.** Changing a template in `apps/worker/src/fixes.ts` only affects new scans.
 - **Worker runs on GitHub Actions, not Railway** (the PRD's choice). It's free on a public repo, at the cost of ~1–2 min startup per scan. Logs are public, so the worker runs with `REDACT_LOGS=1`.
+- **"Not rechecked" instead of "fixed".** An issue missing from the newer scan only counts as fixed if the newer scan covered at least one of the pages it was on. Otherwise a smaller page limit would look like a wave of fixes.
+- **Marks are per site, by fingerprint.** If a module's markup changes enough to change the element path, the issue gets a new fingerprint and shows up again (as new), unmarked.
 - **Cache Components is off** in the web app on purpose: every page is per-user live data.
 - **Heading font is a stand-in.** saltedstone.com uses New Spirit Condensed from Salted Stone's Adobe Fonts kit, which only serves allowed domains. The app uses Fraunces until `hubspot-site-auditor.vercel.app` is added to the kit; the CSS already lists New Spirit first.
 - **Brand colors as text:** the brand orange and red fail contrast as text on cream (2.5 / 3.6:1), so chips and buttons always use ink text, and error text uses a darker rust. Tokens and the checked ratios are in `apps/web/src/app/globals.css`.

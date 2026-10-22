@@ -129,3 +129,16 @@ export interface SecurityRow {
   fix_location: string;
   fix: Fix | null;
 }
+
+export type IssueMarkKind = "wont_fix" | "false_positive";
+
+export interface IssueMark {
+  id: number;
+  site_id: string;
+  fingerprint: string;
+  kind: IssueMarkKind;
+  note: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}

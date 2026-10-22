@@ -68,3 +68,5 @@ export const LINK_CHECK_LABEL: Record<string, string> = {
   "http-internal": "Uses http://",
   "not-checked": "Not checked (rate limited)",
 };
+
+export const MARK_LABEL = { wont_fix: "Won't fix", false_positive: "False positive" } as const;

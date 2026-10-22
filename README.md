@@ -29,6 +29,19 @@ Issues are grouped by where the fix lives:
 
 The security checks are **passive**: they read what any browser sees and never send attack traffic. Reports state that this is an automated scan, not a full audit.
 
+## Comparing scans
+
+Re-scan a site after fixes and the report shows what changed since its previous scan. The full comparison (`/runs/:id/compare`) works between any two scans of a site, matching issues by fingerprint (rule + module + element path):
+
+| Bucket | Meaning |
+| --- | --- |
+| Fixed | In the older scan, gone from the same pages in the newer one |
+| New | In the newer scan only |
+| Still open | In both |
+| Not rechecked | In the older scan, but the newer scan didn't cover any of its pages (smaller page limit or different path filters) |
+
+Any issue can be marked **won't fix** or **false positive** with a note. Marks belong to the site, so the issue stays hidden in every scan of that site until someone unmarks it; a toggle on the report shows marked issues. Marked issues are left out of the counts and the issues CSV.
+
 ## How it works
 
 ```
@@ -152,5 +165,5 @@ pnpm build       # web app production build
 ## Roadmap
 
 - **Phase 1 — MVP:** module-aware scan, alt text, internal links, security headers, fix suggestions, report views, CSV export. [phases/phase-1-mvp.md](phases/phase-1-mvp.md)
-- **Phase 2 — Re-scans and File Manager:** run comparison, won't-fix marking, forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
+- **Phase 2 — Re-scans and File Manager** (in progress; run comparison and won't-fix marking done): forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
 - **Phase 3 — Client-facing:** shareable reports, scheduled scans, Teamwork push, CMS API module paths, Claude API fixes. [phases/phase-3-client-facing.md](phases/phase-3-client-facing.md)

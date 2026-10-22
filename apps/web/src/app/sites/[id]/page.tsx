@@ -80,6 +80,11 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
                   <span className="text-ink/70">{timeAgo(run.created_at)}</span>
                 </div>
                 <div className="flex items-center gap-3 text-ink/85">
+                  {run.status === "done" && runs.slice(runs.indexOf(run) + 1).some((r) => r.status === "done") && (
+                    <Link href={`/runs/${run.id}/compare`} className="link font-mono text-[11px] font-bold tracking-[0.06em] uppercase">
+                      Compare
+                    </Link>
+                  )}
                   {run.status === "done" && run.summary && (
                     <>
                       <span>{run.summary.pagesScanned} pages</span>

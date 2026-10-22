@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { EXPORT_KINDS, exportFilename, imagesCsv, issuesCsv, linksCsv, securityCsv, type ExportKind } from "@/lib/exports";
 import { createClient } from "@/lib/supabase/server";
-import type { ImageRow, IssueRow, LinkRow, ModuleSummaryRow, SecurityRow } from "@/lib/types";
+import { summarizeModules } from "@/lib/summary";
+import type { ImageRow, IssueRow, LinkRow, SecurityRow } from "@/lib/types";
 
 /** GET /runs/:id/export/:kind — CSV download, read as the signed-in user (RLS applies). */
 export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/export/[kind]">) {
@@ -16,19 +17,22 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/e
 
   const { data: run } = await supabase
     .from("runs")
-    .select("created_at, status, sites(domain)")
+    .select("created_at, status, site_id, sites(domain)")
     .eq("id", id)
-    .maybeSingle<{ created_at: string; status: string; sites: { domain: string } }>();
+    .maybeSingle<{ created_at: string; status: string; site_id: string; sites: { domain: string } }>();
   if (!run || run.status !== "done") return NextResponse.json({ error: "Scan not found" }, { status: 404 });
 
   let csv: string;
   switch (kind as ExportKind) {
     case "issues": {
-      const [{ data: issues }, { data: modules }] = await Promise.all([
+      // Issues marked won't fix / false positive stay out of remediation tickets.
+      const [{ data: issues }, { data: marks }] = await Promise.all([
         supabase.from("issues").select("*").eq("run_id", id).returns<IssueRow[]>(),
-        supabase.from("module_summary").select("*").eq("run_id", id).order("weight", { ascending: false }).returns<ModuleSummaryRow[]>(),
+        supabase.from("issue_marks").select("fingerprint").eq("site_id", run.site_id),
       ]);
-      csv = issuesCsv(issues ?? [], modules ?? []);
+      const marked = new Set((marks ?? []).map((m) => m.fingerprint));
+      const open = (issues ?? []).filter((i) => !marked.has(i.fingerprint));
+      csv = issuesCsv(open, summarizeModules(open, id));
       break;
     }
     case "images": {

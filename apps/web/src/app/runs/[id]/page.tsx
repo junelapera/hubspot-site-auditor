@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BackChevron } from "@/components/chevron";
+import { BackChevron, NextChevron } from "@/components/chevron";
+import { loadComparison, previousRun } from "@/lib/compare-data";
 import { duration } from "@/lib/format";
 import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
@@ -17,7 +18,8 @@ type ViewKey = keyof typeof VIEWS;
 
 export default async function RunPage({ params, searchParams }: PageProps<"/runs/[id]">) {
   const { id } = await params;
-  const { view: viewParam } = await searchParams;
+  const { view: viewParam, hidden } = await searchParams;
+  const showHidden = hidden === "1";
   const view: ViewKey = typeof viewParam === "string" && viewParam in VIEWS ? (viewParam as ViewKey) : "modules";
 
   const { supabase } = await requireUser();
@@ -28,11 +30,25 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
     .maybeSingle<Run & { sites: Site }>();
   if (!run) notFound();
 
+  // Marked issues are left out of the counts; the comparison is with the previous scan of this site.
+  const [{ data: fingerprints }, { data: marks }, previous] = await Promise.all([
+    supabase.from("issues").select("fingerprint").eq("run_id", run.id),
+    supabase.from("issue_marks").select("fingerprint").eq("site_id", run.site_id),
+    run.status === "done" ? previousRun(supabase, run) : Promise.resolve(null),
+  ]);
+  const marked = new Set((marks ?? []).map((m) => m.fingerprint));
+  const hiddenCount = (fingerprints ?? []).filter((f) => marked.has(f.fingerprint)).length;
+  const comparison = previous ? await loadComparison(supabase, run.site_id, previous.id, run.id) : null;
+
   const s = run.summary;
   const tiles = s
     ? [
         { label: "Pages scanned", value: s.pagesScanned, note: s.pagesFailed ? `${s.pagesFailed} failed` : undefined },
-        { label: "Issues", value: s.issues, note: `from ${s.rawFindings} page-level findings` },
+        {
+          label: "Issues",
+          value: s.issues - hiddenCount,
+          note: `from ${s.rawFindings} page-level findings${hiddenCount ? ` · ${hiddenCount} marked` : ""}`,
+        },
         { label: "Groups", value: s.modules, note: `${Math.round(s.namedModuleRate * 100)}% named modules` },
         { label: "Images flagged", value: s.imagesFlagged },
         { label: "Link issues", value: s.linkIssues },
@@ -74,6 +90,26 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
             ))}
           </dl>
 
+          {comparison && previous && (
+            <section aria-labelledby="compare-heading" className="card flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
+              <h2 id="compare-heading" className="eyebrow">
+                Since {new Date(previous.created_at).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })}
+              </h2>
+              <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
+                <li><span className="chip mr-1.5 bg-mint">{comparison.fixed.length}</span>fixed</li>
+                <li><span className="chip mr-1.5 bg-pink">{comparison.new.length}</span>new</li>
+                <li><span className="chip mr-1.5 bg-paper">{comparison.open.length}</span>still open</li>
+                {comparison.notRechecked.length > 0 && (
+                  <li><span className="chip mr-1.5 bg-tan">{comparison.notRechecked.length}</span>not rechecked</li>
+                )}
+              </ul>
+              <Link href={`/runs/${run.id}/compare?with=${previous.id}`} className="btn btn-secondary btn-sm sm:ml-auto">
+                View comparison
+                <NextChevron />
+              </Link>
+            </section>
+          )}
+
           <section aria-labelledby="exports-heading" className="flex flex-wrap items-center gap-2 text-sm">
             <h2 id="exports-heading" className="eyebrow mr-1">Download CSV</h2>
             {[
@@ -108,7 +144,7 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
             ))}
           </nav>
 
-          <View runId={run.id} />
+          <View runId={run.id} siteId={run.site_id} showHidden={showHidden} />
         </>
       )}
     </main>

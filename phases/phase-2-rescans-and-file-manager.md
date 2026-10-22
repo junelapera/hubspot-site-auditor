@@ -1,6 +1,6 @@
 # Phase 2 — Re-scans and File Manager
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: Not started · Depends on: [Phase 1](phase-1-mvp.md)
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history and comparison done · Depends on: [Phase 1](phase-1-mvp.md)
 
 ## Goal
 
@@ -32,10 +32,10 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 ### 1. Run history and comparison
 
-- [ ] Every run saved per site (already stored in Phase 1; add the run list UI)
-- [ ] Compare any two runs by issue fingerprint: **fixed**, **new**, **still open**
-- [ ] Mark an issue **won't fix** or **false positive** with a note
-- [ ] Marked issues stay hidden in later runs (matched by fingerprint), with a toggle to show them
+- [x] Every run saved per site (already stored in Phase 1; add the run list UI)
+- [x] Compare any two runs by issue fingerprint: **fixed**, **new**, **still open**, plus **not rechecked** when the newer scan didn't cover an issue's pages
+- [x] Mark an issue **won't fix** or **false positive** with a note
+- [x] Marked issues stay hidden in later runs (matched by fingerprint), with a toggle to show them; also left out of the issues CSV
 - [ ] Accessibility score and security grade (A–F) per run, shown over time *
 
 ### 2. File Manager pass
@@ -97,7 +97,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 ## Acceptance criteria
 
-- [ ] Re-scanning an unchanged site shows **zero** new and zero fixed issues (fingerprints are stable)
+- [x] Re-scanning an unchanged site shows **zero** new and zero fixed issues (fingerprints are stable) — verified on two identical 10-page saltedstone.com scans
 - [ ] After fixing one module, a re-scan shows its issues as fixed on every affected page
 - [ ] Form check creates **no** contacts in the HubSpot portal (verify in CRM after a test run)
 - [ ] Missing-redirect CSV imports into HubSpot's bulk redirect tool without edits
