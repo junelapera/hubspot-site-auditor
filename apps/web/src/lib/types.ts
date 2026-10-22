@@ -36,6 +36,9 @@ export interface RunSummary {
   rawFindings: number;
   pagesScanned: number;
   pagesFailed: number;
+  /** External link URLs requested / left out (skip list or cap). Missing on older scans. */
+  externalLinksChecked?: number;
+  externalLinksSkipped?: number;
   namedModuleRate: number;
   durationMs: number;
   /** Missing on scans from before these checks existed. */

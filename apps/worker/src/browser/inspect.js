@@ -2,7 +2,7 @@
 // page.evaluate gets exactly this source.
 //
 // Input:  { targets: string[][] }  — axe node targets
-// Output: { targets: Location[], images: ImageInfo[], links: LinkInfo[], insecure: InsecureResource[] }
+// Output: { targets: Location[], images: ImageInfo[], links: LinkInfo[], insecure: InsecureResource[], anchors: string[] }
 (function inspect({ targets }) {
   const MODULE_WRAPPER = ".hs_cos_wrapper_widget, .hs_cos_wrapper_type_module";
   // Editor-owned content: fixed in the post/page editor or CTA tool, not in theme code.
@@ -225,10 +225,19 @@
     }
   }
 
+  // Fragment targets on this page, for the broken-anchor check: element IDs and <a name>.
+  const anchors = [
+    ...new Set([
+      ...[...document.querySelectorAll("[id]")].map((el) => el.id),
+      ...[...document.querySelectorAll("a[name]")].map((el) => el.getAttribute("name")),
+    ]),
+  ].filter(Boolean);
+
   return {
     targets: targets.map(locateTarget),
     images,
     links,
     insecure,
+    anchors,
   };
 })

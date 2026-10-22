@@ -236,19 +236,40 @@ export async function ImagesView({ runId }: ViewProps) {
 
 export async function LinksView({ runId }: ViewProps) {
   const supabase = await createClient();
-  const { data: links } = await supabase.from("links").select("*").eq("run_id", runId).returns<LinkRow[]>();
-  if (!links?.length) return <Empty>No broken internal links or redirect chains found.</Empty>;
+  const [{ data: links }, { data: run }] = await Promise.all([
+    supabase.from("links").select("*").eq("run_id", runId).returns<LinkRow[]>(),
+    supabase.from("runs").select("summary").eq("id", runId).maybeSingle<Pick<Run, "summary">>(),
+  ]);
+  const checked = run?.summary?.externalLinksChecked;
+  const skipped = run?.summary?.externalLinksSkipped ?? 0;
+  const externalNote =
+    checked !== undefined ? (
+      <p className="text-sm text-ink/75">
+        {checked} external {checked === 1 ? "link" : "links"} checked
+        {skipped > 0 && `, ${skipped} not checked (sites that block automated checks, like LinkedIn and Facebook)`}. Only links that are
+        certainly dead are reported: sites that block bots or time out aren&apos;t.
+      </p>
+    ) : null;
+  if (!links?.length) {
+    return (
+      <div className="space-y-2">
+        {externalNote}
+        <Empty>No broken links, broken anchors or redirect chains found.</Empty>
+      </div>
+    );
+  }
 
   return (
     <section aria-label="Link issues" className="space-y-2">
+      {externalNote}
       {links.map((l) => (
         <details key={l.id} className="group card">
           <summary className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-4 py-3 text-sm">
             <DisclosureChevron />
-            <Badge tone={l.check === "broken" || l.check === "redirect-to-dead" ? "critical" : "moderate"}>
+            <Badge tone={["broken", "redirect-to-dead", "broken-external"].includes(l.check) ? "critical" : "moderate"}>
               {LINK_CHECK_LABEL[l.check] ?? l.check}
             </Badge>
-            <span className="min-w-0 flex-1 truncate font-mono text-ink">{pathOf(l.url)}</span>
+            <span className="min-w-0 flex-1 truncate font-mono text-ink">{l.check === "broken-external" ? l.url : l.check === "broken-anchor" ? pathOf(l.url) + new URL(l.url).hash : pathOf(l.url)}</span>
             <span className="flex items-center gap-1 font-mono text-xs text-ink/70">
               {l.hops.length
                 ? l.hops.map((h, i) => (

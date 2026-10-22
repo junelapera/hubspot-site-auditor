@@ -1,6 +1,6 @@
 import { dedupeIssues, namedModuleRate, summarizeModules } from "./aggregate.js";
 import { auditImages, type FlaggedImage } from "./checks/alt.js";
-import { auditInternalLinks, type LinkIssue } from "./checks/links.js";
+import { auditAnchors, auditExternalLinks, auditInternalLinks, type LinkIssue } from "./checks/links.js";
 import { auditLibraries, checkLibraries, createDetector, loadRetireRepo, type JsLibrary } from "./checks/libraries.js";
 import {
   auditMixedContent,
@@ -53,6 +53,9 @@ export interface AuditResult {
   stats: {
     pagesScanned: number;
     pagesFailed: number;
+    /** External link URLs requested, and those left out (skip list or over the cap). */
+    externalLinksChecked: number;
+    externalLinksSkipped: number;
     rawFindings: number;
     namedModuleRate: number;
     durationMs: number;
@@ -91,7 +94,11 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
   const issues = dedupeIssues(pages);
 
   await hooks.onStage?.("links");
-  const links = await auditInternalLinks(pages, siteHost, { knownLive: crawl.sitemapUrls });
+  const [internal, external] = await Promise.all([
+    auditInternalLinks(pages, siteHost, { knownLive: crawl.sitemapUrls }),
+    auditExternalLinks(pages, siteHost),
+  ]);
+  const links = [...internal, ...external.issues, ...auditAnchors(pages, siteHost)];
   const linksMs = mark();
 
   await hooks.onStage?.("security");
@@ -120,6 +127,8 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
     stats: {
       pagesScanned: pages.filter((p) => !p.error).length,
       pagesFailed: pages.filter((p) => p.error).length,
+      externalLinksChecked: external.checked,
+      externalLinksSkipped: external.skipped,
       rawFindings: pages.reduce((n, p) => n + p.findings.length, 0),
       namedModuleRate: namedModuleRate(issues),
       durationMs: Date.now() - started,

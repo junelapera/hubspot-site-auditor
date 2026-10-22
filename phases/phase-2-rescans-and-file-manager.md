@@ -1,6 +1,6 @@
 # Phase 2 — Re-scans and File Manager
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, and security checks done · Depends on: [Phase 1](phase-1-mvp.md)
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links and anchors done · Depends on: [Phase 1](phase-1-mvp.md)
 
 ## Goal
 
@@ -62,9 +62,9 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 ### 4. Links and redirects (remaining checks)
 
-- [ ] External links: 4xx / 5xx flagged; HEAD then GET; per-domain rate limit
-- [ ] Skip list for external sites that block bots
-- [ ] Broken anchor: `#section` points to an ID not on the page *
+- [x] External links: 4xx / 5xx flagged; HEAD then GET; per-domain rate limit
+- [x] Skip list for external sites that block bots
+- [x] Broken anchor: `#section` points to an ID not on the page *
 - [ ] Upload an old sitemap (e.g. WordPress); flag old URLs that return 404
 - [ ] Suggest a new URL by slug match
 - [ ] CSV of missing redirects in HubSpot's bulk redirect import format

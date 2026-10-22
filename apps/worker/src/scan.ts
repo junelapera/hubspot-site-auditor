@@ -55,7 +55,7 @@ export async function scanPage(
 ): Promise<PageResult> {
   const context = await browser.newContext({ viewport: DESKTOP, userAgent: USER_AGENT });
   const page = await context.newPage();
-  const empty = { findings: [], images: [], links: [], insecure: [], cookies: [], scripts: [], libraries: [] };
+  const empty = { findings: [], images: [], links: [], insecure: [], cookies: [], scripts: [], libraries: [], anchors: [] };
 
   // What the browser saw while loading: mixed-content warnings, script requests, first-party Set-Cookie headers.
   const consoleInsecure: InsecureResource[] = [];
@@ -122,7 +122,7 @@ export async function scanPage(
     const nodes = axe.violations.flatMap((v) => v.nodes.map((node) => ({ v, node })));
     const inspected = (await page.evaluate(
       `(${INSPECT_SRC})(${JSON.stringify({ targets: nodes.map(({ node }) => node.target) })})`,
-    )) as { targets: Location[]; images: ImageInfo[]; links: LinkInfo[]; insecure: InsecureResource[] };
+    )) as { targets: Location[]; images: ImageInfo[]; links: LinkInfo[]; insecure: InsecureResource[]; anchors: string[] };
 
     const findings: AxeFinding[] = nodes.map(({ v, node }, i) => ({
       ruleId: v.id,
@@ -147,6 +147,7 @@ export async function scanPage(
       cookies: (await Promise.all(cookieReads)).flat(),
       scripts: [...scripts],
       libraries: (await Promise.all(libraryReads)).flat(),
+      anchors: inspected.anchors,
     };
   } catch (err) {
     return { url, status: null, redirected: false, error: (err as Error).message, ...empty };

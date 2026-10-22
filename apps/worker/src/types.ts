@@ -80,6 +80,8 @@ export interface PageResult {
   /** Every script URL the page requested, first- and third-party. */
   scripts: string[];
   libraries: DetectedLibrary[];
+  /** IDs and <a name> values on the page: valid #fragment targets. */
+  anchors: string[];
 }
 
 /** A deduplicated issue: same rule + same element path + same module, across pages. */

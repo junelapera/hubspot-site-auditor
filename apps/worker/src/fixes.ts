@@ -319,6 +319,24 @@ export function suggestLinkFix(issue: LinkIssue): FixSuggestion {
       summary: "The site rate-limited the scanner (HTTP 429), so this link couldn't be checked.",
       steps: ["Re-run the scan later, or allow-list the scanner's IP in Cloudflare."],
     },
+    "broken-external": {
+      summary: issue.status.finalStatus
+        ? `External link returns ${issue.status.finalStatus}.`
+        : `External link's site can't be reached (${issue.status.error}).`,
+      steps: [
+        "Open the link in a browser to confirm it's gone, then update it to the page's new address or remove it.",
+        "If it points to a resource that moved, search the other site for it; the Wayback Machine (web.archive.org) can help find what it used to be.",
+        REVIEW_NOTE,
+      ],
+    },
+    "broken-anchor": {
+      summary: `Link jumps to #${issue.url.split("#")[1]}, but no element on ${path(issue.url.split("#")[0]) || "the page"} has that ID.`,
+      steps: [
+        "Change the link to an ID that exists on the target page, or add the ID to the section it should jump to (in the module's ID / anchor field, or the rich text editor's anchor tool).",
+        "IDs are case-sensitive; check the spelling matches exactly.",
+        REVIEW_NOTE,
+      ],
+    },
   };
   return fixes[issue.check];
 }
