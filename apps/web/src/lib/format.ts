@@ -50,3 +50,20 @@ export function duration(ms: number): string {
   const s = Math.round(ms / 1000);
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${s % 60}s`;
 }
+
+export const ALT_CHECK_LABEL: Record<string, string> = {
+  missing: "Missing alt",
+  filename: "File name as alt",
+  generic: "Generic alt",
+  "empty-linked": "Empty alt on linked image",
+  "too-long": "Too long",
+  redundant: "Repeats nearby text",
+};
+
+export const LINK_CHECK_LABEL: Record<string, string> = {
+  broken: "Broken",
+  "redirect-chain": "Redirect chain",
+  "redirect-to-dead": "Redirects to a dead page",
+  "http-internal": "Uses http://",
+  "not-checked": "Not checked (rate limited)",
+};

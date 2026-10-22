@@ -133,7 +133,7 @@ For local development, run `pnpm worker` instead. It polls every 5 seconds.
 ### Checks
 
 ```bash
-pnpm test        # worker unit tests
+pnpm test        # unit tests (worker + web)
 pnpm typecheck   # both apps
 pnpm lint        # web app
 pnpm build       # web app production build

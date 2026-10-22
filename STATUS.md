@@ -12,7 +12,8 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Database | Schema, queue (`claim_run`), and `module_summary` view applied to Supabase. Sign-up and reads limited to @saltedstone.com, tested on the live project. |
 | Web app | Email + password sign-up and sign-in (@saltedstone.com only) with password reset; sites, run a scan with live progress, report with Modules / Pages / Images / Links / Security tabs and copyable fixes. Deployed to Vercel; pushes to `main` deploy production. "Run scan" in production verified: the worker started 47s after the click. |
 | Worker hosting | GitHub Actions workflow (`scan.yml`): on dispatch, by hand, and every 15 min. Verified from the app's "Run scan" button: a 5-page scan started 42s after the click (Chromium cached) and finished 15s later. Public log shows run IDs only. |
-| Tests | 28 worker unit tests; both apps typecheck; web app lints and builds. |
+| CSV exports | Issues (one row per module + rule, Teamwork / Jira columns), images, links, security. Download buttons on every report. Formula-injection safe, UTF-8 BOM for Excel. |
+| Tests | 28 worker + 9 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
 
@@ -27,10 +28,9 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 
 ## Next
 
-1. **CSV exports:** issues (Teamwork / Jira import), flagged images, security checks.
-2. **Supabase Auth URLs:** set Site URL to the production URL and add the redirect URLs (production, localhost, previews) so sign-up confirmation and password-reset links land on the right app.
-3. **Custom SMTP** in Supabase Auth, so teammates can receive sign-in emails.
-4. **Acceptance runs** on 3 client sites: named-module rate, alt-text false positives, a SecurityScorecard comparison, and a 200-page timing.
+1. **Supabase Auth URLs:** set Site URL to the production URL and add the redirect URLs (production, localhost, previews) so sign-up confirmation and password-reset links land on the right app.
+2. **Custom SMTP** in Supabase Auth, so teammates can receive sign-in emails.
+3. **Acceptance runs** on 3 client sites: named-module rate, alt-text false positives, a SecurityScorecard comparison, a 200-page timing, and a test import of the issues CSV into Teamwork.
 
 ## Known issues and decisions
 

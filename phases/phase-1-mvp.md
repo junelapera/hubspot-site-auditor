@@ -1,6 +1,6 @@
 # Phase 1 — MVP
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — worker (GitHub Actions) and web app (Vercel) deployed; CSV export and acceptance runs next
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — all features built and deployed; acceptance runs on client sites next
 
 ## Goal
 
@@ -105,9 +105,10 @@ By the end of this phase, a developer can enter a domain, run a scan, and get a 
 
 ### 8. CSV export
 
-- [ ] All issues: one row per module + rule, with suggested fix (Teamwork.com / Jira importable)
-- [ ] Flagged images, for content editors
-- [ ] Security checks, for SecurityScorecard responses
+- [x] All issues: one row per module + rule, with suggested fix (Teamwork.com / Jira importable)
+- [x] Flagged images, for content editors
+- [x] Security checks, for SecurityScorecard responses
+- [x] Link issues, with ready-made redirect rows *
 
 \* Not assigned to a phase in the PRD. Placed here because it's cheap once the surrounding check exists.
 

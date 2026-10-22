@@ -1,6 +1,6 @@
 import { Badge } from "@/components/badge";
 import { FixPanel } from "@/components/fix-panel";
-import { moduleLabel, pathOf, SCOPE_HINT } from "@/lib/format";
+import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import type { Impact, ImageRow, IssueRow, LinkRow, ModuleSummaryRow, PageRow, SecurityRow } from "@/lib/types";
 
@@ -149,15 +149,6 @@ export async function PagesView({ runId }: { runId: string }) {
 
 // ---------- Images ----------
 
-const ALT_CHECK_LABEL: Record<string, string> = {
-  missing: "Missing alt",
-  filename: "File name as alt",
-  generic: "Generic alt",
-  "empty-linked": "Empty alt on linked image",
-  "too-long": "Too long",
-  redundant: "Repeats nearby text",
-};
-
 export async function ImagesView({ runId }: { runId: string }) {
   const supabase = await createClient();
   const { data: images } = await supabase.from("images").select("*").eq("run_id", runId).returns<ImageRow[]>();
@@ -207,14 +198,6 @@ export async function ImagesView({ runId }: { runId: string }) {
 }
 
 // ---------- Links ----------
-
-const LINK_CHECK_LABEL: Record<string, string> = {
-  broken: "Broken",
-  "redirect-chain": "Redirect chain",
-  "redirect-to-dead": "Redirects to a dead page",
-  "http-internal": "Uses http://",
-  "not-checked": "Not checked (rate limited)",
-};
 
 export async function LinksView({ runId }: { runId: string }) {
   const supabase = await createClient();

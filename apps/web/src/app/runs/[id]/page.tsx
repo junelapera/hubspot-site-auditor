@@ -72,6 +72,25 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
             ))}
           </dl>
 
+          <section aria-labelledby="exports-heading" className="flex flex-wrap items-center gap-2 text-sm">
+            <h2 id="exports-heading" className="mr-1 font-medium text-slate-700">Download CSV:</h2>
+            {[
+              { kind: "issues", label: "Issues (Teamwork / Jira)" },
+              { kind: "images", label: "Images" },
+              { kind: "links", label: "Links" },
+              { kind: "security", label: "Security" },
+            ].map((e) => (
+              <a
+                key={e.kind}
+                href={`/runs/${run.id}/export/${e.kind}`}
+                download
+                className="rounded-md border border-slate-300 bg-white px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-50"
+              >
+                {e.label}
+              </a>
+            ))}
+          </section>
+
           <nav aria-label="Report views" className="flex gap-1 overflow-x-auto border-b border-slate-200">
             {(Object.keys(VIEWS) as ViewKey[]).map((key) => (
               <Link

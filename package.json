@@ -6,7 +6,7 @@
     "dev": "pnpm --filter web dev",
     "worker": "pnpm --filter worker start",
     "scan": "pnpm --filter worker scan",
-    "test": "pnpm --filter worker test",
+    "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm --filter web lint",
     "build": "pnpm --filter web build"
