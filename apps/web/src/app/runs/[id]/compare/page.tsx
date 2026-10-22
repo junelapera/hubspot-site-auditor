@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/badge";
 import { BackChevron, DisclosureChevron } from "@/components/chevron";
+import { LocalTime } from "@/components/local-time";
 import { ScanSelect } from "@/components/scan-select";
 import type { ComparedIssue } from "@/lib/compare";
 import { loadComparison, previousRun } from "@/lib/compare-data";
@@ -10,8 +11,6 @@ import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
 
 export const metadata = { title: "Compare scans · HubSpot Site Auditor" };
-
-const when = (iso: string) => new Date(iso).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" });
 
 export default async function ComparePage({ params, searchParams }: PageProps<"/runs/[id]/compare">) {
   const { id } = await params;
@@ -37,7 +36,7 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
   const back = (
     <Link href={`/runs/${run.id}`} className="eyebrow inline-flex items-center gap-1 py-1 hover:underline hover:underline-offset-4">
       <BackChevron />
-      Scan of {when(run.created_at)}
+      Scan of <LocalTime iso={run.created_at} />
     </Link>
   );
 
@@ -70,7 +69,7 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
         {back}
         <h1 className="mt-3 font-display text-4xl font-medium leading-tight tracking-tight break-words sm:text-5xl">Compare scans</h1>
         <p className="text-sm text-ink/75">
-          {run.sites.domain}: from {when(older.created_at)} to {when(newer.created_at)}. Issues are matched by rule, module, and element.
+          {run.sites.domain}: from <LocalTime iso={older.created_at} /> to <LocalTime iso={newer.created_at} />. Issues are matched by rule, module, and element.
         </p>
       </div>
 
@@ -83,7 +82,7 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
             defaultValue={base.id}
             options={(others ?? []).map((r) => ({
               value: r.id,
-              label: when(r.created_at),
+              label: <LocalTime iso={r.created_at} />,
               detail: `${r.summary?.pagesScanned ?? "?"} pages · ${r.summary?.issues ?? "?"} issues`,
             }))}
           />

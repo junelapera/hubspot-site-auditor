@@ -48,6 +48,7 @@ Run `pnpm test` and `pnpm typecheck` before saying a change is done. For web cha
 - Middleware is called **Proxy** here: `src/proxy.ts`.
 - `params` and `searchParams` are Promises. Use the global `PageProps<"/route">` / `LayoutProps<"/">` types.
 - **Cache Components is off on purpose** (`next.config.ts`): every page is per-user live data. Don't turn it on without adding Suspense boundaries around every session read.
+- **Never format dates on the server** (Vercel runs in UTC, so everyone would see UTC times). Use `<LocalTime iso>` / `<TimeAgo iso>` from `components/local-time.tsx`; they format in the viewer's time zone and show labelled UTC until hydration.
 - A `"use server"` file may only export async functions. Exporting a constant breaks the build with "module has no exports".
 - Server code reads data through `createClient()` / `requireUser()` from `@/lib/supabase/server`, as the signed-in user, so RLS applies.
 - The service role key is used in the web app **only** through `createAdminClient()` (`@/lib/supabase/admin`), for user admin: invites and the team list. Call it after `requireUser()` plus an `isAgencyEmail()` check. Never use it for table data, and never give it a `NEXT_PUBLIC_` name.

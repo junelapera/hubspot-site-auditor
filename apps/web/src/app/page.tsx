@@ -1,7 +1,7 @@
 import Link from "next/link";
+import { TimeAgo } from "@/components/local-time";
 import { Badge } from "@/components/badge";
 import { AddSiteForm } from "@/components/forms";
-import { timeAgo } from "@/lib/format";
 import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
 
@@ -57,7 +57,7 @@ export default async function HomePage() {
                     <td className="px-4 py-3 text-ink/75">
                       {run ? (
                         <>
-                          {timeAgo(run.created_at)}
+                          <TimeAgo iso={run.created_at} />
                           {run.status !== "done" && <span className="ml-2 text-xs text-ink/70">({run.status})</span>}
                         </>
                       ) : (

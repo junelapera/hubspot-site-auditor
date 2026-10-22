@@ -5,7 +5,7 @@ import { Check, ChevronDown } from "lucide-react";
 
 export interface ScanOption {
   value: string;
-  label: string;
+  label: React.ReactNode;
   /** Secondary line, e.g. "10 pages · 9 issues". */
   detail?: string;
 }

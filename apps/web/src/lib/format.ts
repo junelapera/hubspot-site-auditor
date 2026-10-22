@@ -37,15 +37,6 @@ export function pathOf(url: string): string {
   }
 }
 
-export function timeAgo(iso: string): string {
-  const secs = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  if (secs < 60) return "just now";
-  const mins = Math.round(secs / 60);
-  if (mins < 60) return `${mins} min ago`;
-  const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} h ago`;
-  return new Date(iso).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" });
-}
 
 export function duration(ms: number): string {
   const s = Math.round(ms / 1000);

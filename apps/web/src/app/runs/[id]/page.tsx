@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LocalTime } from "@/components/local-time";
 import { notFound } from "next/navigation";
 import { BackChevron, NextChevron } from "@/components/chevron";
 import { loadComparison, previousRun } from "@/lib/compare-data";
@@ -68,7 +69,7 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
           Scan of {run.sites.domain}
         </h1>
         <p className="text-sm text-ink/75">
-          {new Date(run.created_at).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })}
+          <LocalTime iso={run.created_at} />
           {s && ` · took ${duration(s.durationMs)}`} · Automated, passive scan — not a full accessibility or security audit.
         </p>
       </div>
@@ -93,7 +94,7 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
           {comparison && previous && (
             <section aria-labelledby="compare-heading" className="card flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
               <h2 id="compare-heading" className="eyebrow">
-                Since {new Date(previous.created_at).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })}
+                Since <LocalTime iso={previous.created_at} />
               </h2>
               <ul className="flex flex-wrap gap-x-5 gap-y-2 text-sm">
                 <li><span className="chip mr-1.5 bg-mint">{comparison.fixed.length}</span>fixed</li>

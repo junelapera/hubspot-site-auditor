@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
+import { TimeAgo } from "@/components/local-time";
 import { isAgencyEmail } from "@/lib/auth";
-import { timeAgo } from "@/lib/format";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/supabase/server";
 import { InviteForm } from "./invite-form";
@@ -50,10 +50,10 @@ export default async function TeamPage() {
               </span>
               <span className="text-ink/75">
                 {m.status === "Active" ? (
-                  <>Last signed in {timeAgo(m.lastSignIn!)}</>
+                  <>Last signed in <TimeAgo iso={m.lastSignIn!} /></>
                 ) : (
                   <span className="chip bg-yellow">
-                    Invited {timeAgo(m.invitedAt)} · not accepted yet
+                    Invited <TimeAgo iso={m.invitedAt} /> · not accepted yet
                   </span>
                 )}
               </span>

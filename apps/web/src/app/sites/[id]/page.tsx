@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { LocalTime, TimeAgo } from "@/components/local-time";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/badge";
 import { QueueRunButton, SiteSettingsForm } from "@/components/forms";
 import { RunProgress } from "@/components/run-progress";
 import { BackChevron, DisclosureChevron } from "@/components/chevron";
-import { duration, timeAgo } from "@/lib/format";
+import { duration } from "@/lib/format";
 import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
 
@@ -70,14 +71,14 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
                 <div className="flex items-center gap-3">
                   {run.status === "done" ? (
                     <Link href={`/runs/${run.id}`} className="font-medium text-ink underline-offset-2 hover:underline">
-                      {new Date(run.created_at).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })}
+                      <LocalTime iso={run.created_at} />
                     </Link>
                   ) : (
                     <span className="font-medium text-ink">
-                      {new Date(run.created_at).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" })}
+                      <LocalTime iso={run.created_at} />
                     </span>
                   )}
-                  <span className="text-ink/70">{timeAgo(run.created_at)}</span>
+                  <span className="text-ink/70"><TimeAgo iso={run.created_at} /></span>
                 </div>
                 <div className="flex items-center gap-3 text-ink/85">
                   {run.status === "done" && runs.slice(runs.indexOf(run) + 1).some((r) => r.status === "done") && (
