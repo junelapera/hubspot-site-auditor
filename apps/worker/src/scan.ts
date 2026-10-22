@@ -3,7 +3,8 @@ import AxeBuilder from "@axe-core/playwright";
 import pLimit from "p-limit";
 import { chromium, type Browser } from "playwright";
 import { isRateLimited, retryDelay, sleep, USER_AGENT } from "./http.js";
-import type { AxeFinding, Impact, ImageInfo, LinkInfo, Location, PageResult } from "./types.js";
+import { isFirstParty, parseMixedContentMessage, parseSetCookie } from "./checks/page-security.js";
+import type { AxeFinding, CookieInfo, Impact, ImageInfo, InsecureResource, LinkInfo, Location, PageResult } from "./types.js";
 
 const INSPECT_SRC = readFileSync(new URL("./browser/inspect.js", import.meta.url), "utf8");
 
@@ -43,6 +44,35 @@ export async function scanPages(urls: string[], opts: ScanOptions = {}): Promise
 export async function scanPage(browser: Browser, url: string): Promise<PageResult> {
   const context = await browser.newContext({ viewport: DESKTOP, userAgent: USER_AGENT });
   const page = await context.newPage();
+  const empty = { findings: [], images: [], links: [], insecure: [], cookies: [], scripts: [] };
+
+  // What the browser saw while loading: mixed-content warnings, script requests, first-party Set-Cookie headers.
+  const consoleInsecure: InsecureResource[] = [];
+  const scripts = new Set<string>();
+  const cookieReads: Promise<CookieInfo[]>[] = [];
+  const siteHost = new URL(url).hostname;
+  page.on("console", (msg) => {
+    const found = parseMixedContentMessage(msg.text());
+    if (found) consoleInsecure.push({ ...found, location: null });
+  });
+  page.on("request", (req) => {
+    if (req.resourceType() === "script") scripts.add(req.url());
+  });
+  page.on("response", (res) => {
+    let host: string;
+    try {
+      host = new URL(res.url()).hostname;
+    } catch {
+      return;
+    }
+    if (!isFirstParty(host, siteHost)) return;
+    cookieReads.push(
+      res
+        .headerValues("set-cookie")
+        .then((values) => values.flatMap((v) => v.split("\n")).map(parseSetCookie).filter((c): c is CookieInfo => c !== null))
+        .catch(() => []),
+    );
+  });
 
   try {
     let response = await page.goto(url, { waitUntil: "load", timeout: 45_000 });
@@ -54,7 +84,7 @@ export async function scanPage(browser: Browser, url: string): Promise<PageResul
     const status = response?.status() ?? null;
     if (status === null || status >= 400) {
       const error = isRateLimited(status) ? `Rate limited (HTTP ${status})` : `HTTP ${status}`;
-      return { url, status, redirected: false, error, findings: [], images: [], links: [] };
+      return { url, status, redirected: false, error, ...empty };
     }
     // Let JS-built modules and HubSpot forms render; don't fail if trackers keep the network busy.
     await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
@@ -64,7 +94,7 @@ export async function scanPage(browser: Browser, url: string): Promise<PageResul
     const nodes = axe.violations.flatMap((v) => v.nodes.map((node) => ({ v, node })));
     const inspected = (await page.evaluate(
       `(${INSPECT_SRC})(${JSON.stringify({ targets: nodes.map(({ node }) => node.target) })})`,
-    )) as { targets: Location[]; images: ImageInfo[]; links: LinkInfo[] };
+    )) as { targets: Location[]; images: ImageInfo[]; links: LinkInfo[]; insecure: InsecureResource[] };
 
     const findings: AxeFinding[] = nodes.map(({ v, node }, i) => ({
       ruleId: v.id,
@@ -85,9 +115,12 @@ export async function scanPage(browser: Browser, url: string): Promise<PageResul
       findings,
       images: inspected.images,
       links: inspected.links,
+      insecure: [...inspected.insecure, ...consoleInsecure],
+      cookies: (await Promise.all(cookieReads)).flat(),
+      scripts: [...scripts],
     };
   } catch (err) {
-    return { url, status: null, redirected: false, error: (err as Error).message, findings: [], images: [], links: [] };
+    return { url, status: null, redirected: false, error: (err as Error).message, ...empty };
   } finally {
     await context.close();
   }

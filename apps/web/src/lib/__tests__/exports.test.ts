@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { exportFilename, imagesCsv, issuesCsv } from "../exports";
+import { exportFilename, imagesCsv, issuesCsv, mixedContentCsv } from "../exports";
 import type { ImageRow, IssueRow, ModuleSummaryRow } from "../types";
 
 const fix = { summary: "Raise contrast.", steps: ["Darken the text."], snippet: { lang: "css" as const, code: ".hero a { color: #000; }" } };
@@ -50,6 +50,16 @@ test("images: hostile alt text can't become a formula", () => {
     scope: "module", module: ".hero", fixes: [], pages: ["https://x.com/a"],
   };
   assert.match(imagesCsv([img]), /"'=HYPERLINK/);
+});
+
+test("mixed content: one row per resource with module and pages", () => {
+  const lines = parse(
+    mixedContentCsv([
+      { id: 1, url: "http://cdn.x.com/a.js", kind: "script", blocked: true, scope: "global", module: ".site-header", path: "script", fix, pages: ["https://x.com/a"] },
+    ]),
+  );
+  assert.equal(lines.length, 2);
+  assert.match(lines[1], /^script,Yes,http:\/\/cdn\.x\.com\/a\.js,\.site-header \(global\),/);
 });
 
 test("filename is safe and dated", () =>

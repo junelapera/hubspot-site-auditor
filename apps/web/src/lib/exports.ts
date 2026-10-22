@@ -1,9 +1,9 @@
 // CSV exports for a run. Pure functions over database rows so they can be tested.
 import { toCsv, type Cell } from "./csv";
 import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel } from "./format";
-import type { Fix, Impact, ImageRow, IssueRow, LinkRow, ModuleSummaryRow, Scope, SecurityRow } from "./types";
+import type { Fix, Impact, ImageRow, IssueRow, LinkRow, MixedContentRow, ModuleSummaryRow, Scope, ScriptDomainRow, SecurityRow } from "./types";
 
-export const EXPORT_KINDS = ["issues", "images", "links", "security"] as const;
+export const EXPORT_KINDS = ["issues", "images", "links", "security", "mixed-content", "scripts"] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];
 
 const MAX_PAGES_LISTED = 50;
@@ -129,6 +129,29 @@ export function securityCsv(checks: SecurityRow[]): string {
   return toCsv(
     ["Check", "Result", "Current value", "Recommended value", "Where to fix", "Suggested fix"],
     sorted.map((c): Cell[] => [c.name, c.pass ? "Pass" : "Fail", c.current, c.recommended, c.fix_location, fixText(c.fix)]),
+  );
+}
+
+export function mixedContentCsv(rows: MixedContentRow[]): string {
+  return toCsv(
+    ["Resource type", "Blocked by browsers", "URL", "Module", "Where to fix", "Pages affected", "Suggested fix", "Found on"],
+    rows.map((m): Cell[] => [
+      m.kind,
+      m.blocked ? "Yes" : "No (upgraded or warned)",
+      m.url,
+      moduleLabel(m.scope, m.module),
+      WHERE_TO_FIX[m.scope],
+      m.pages.length,
+      fixText(m.fix),
+      pageList(m.pages),
+    ]),
+  );
+}
+
+export function scriptsCsv(rows: ScriptDomainRow[]): string {
+  return toCsv(
+    ["Domain", "Pages", "Example scripts", "Found on"],
+    rows.map((s): Cell[] => [s.domain, s.pages.length, s.urls.join("\n"), pageList(s.pages)]),
   );
 }
 

@@ -83,6 +83,8 @@ async function processRun(run: Run) {
         imagesFlagged: result.images.length,
         linkIssues: result.links.length,
         securityFailed: result.security.filter((s) => !s.pass).length,
+        mixedContent: result.mixedContent.length,
+        scriptDomains: result.scripts.length,
       },
     });
     console.log(`Run ${run.id}: done (${result.issues.length} issues, ${(result.stats.durationMs / 1000).toFixed(0)}s)`);
@@ -172,6 +174,25 @@ async function saveResults(runId: string, r: AuditResult) {
     recommended: s.recommended,
     fix_location: s.fixLocation,
     fix: s.fix,
+  })));
+
+  await insert("mixed_content", r.mixedContent.map((m) => ({
+    run_id: runId,
+    url: m.url,
+    kind: m.kind,
+    blocked: m.blocked,
+    scope: m.location?.scope ?? "unknown",
+    module: m.location?.module ?? null,
+    path: m.location?.path ?? "",
+    fix: m.fix,
+    pages: m.pages,
+  })));
+
+  await insert("script_domains", r.scripts.map((s) => ({
+    run_id: runId,
+    domain: s.domain,
+    urls: s.urls,
+    pages: s.pages,
   })));
 }
 

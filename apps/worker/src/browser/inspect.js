@@ -2,7 +2,7 @@
 // page.evaluate gets exactly this source.
 //
 // Input:  { targets: string[][] }  — axe node targets
-// Output: { targets: Location[], images: ImageInfo[], links: LinkInfo[] }
+// Output: { targets: Location[], images: ImageInfo[], links: LinkInfo[], insecure: InsecureResource[] }
 (function inspect({ targets }) {
   const MODULE_WRAPPER = ".hs_cos_wrapper_widget, .hs_cos_wrapper_type_module";
   // Editor-owned content: fixed in the post/page editor or CTA tool, not in theme code.
@@ -179,9 +179,56 @@
     location: locate(a),
   }));
 
+  // Mixed content: http:// URLs in the markup. Read the attributes, not el.src,
+  // because Chrome may already have upgraded an image to https.
+  const insecure = [];
+  function addInsecure(el, value, kind) {
+    if (!value) return;
+    let url;
+    try {
+      url = new URL(value.trim(), document.baseURI);
+    } catch {
+      return;
+    }
+    if (url.protocol === "http:") insecure.push({ url: url.href, kind, location: locate(el) });
+  }
+  function linkKind(link) {
+    const rel = (link.getAttribute("rel") || "").toLowerCase();
+    if (/stylesheet/.test(rel)) return "stylesheet";
+    if (/icon/.test(rel)) return "image";
+    if (/preload|prefetch/.test(rel)) {
+      const as = (link.getAttribute("as") || "").toLowerCase();
+      return ["script", "style", "font", "image"].includes(as) ? (as === "style" ? "stylesheet" : as) : null;
+    }
+    return null;
+  }
+  if (location.protocol === "https:") {
+    for (const el of document.querySelectorAll("img[src], img[srcset], source[src], source[srcset]")) {
+      const kind = el.tagName === "IMG" || el.closest("picture") ? "image" : "media";
+      addInsecure(el, el.getAttribute("src"), kind);
+      for (const candidate of (el.getAttribute("srcset") || "").split(",")) addInsecure(el, candidate.trim().split(/\s+/)[0], kind);
+    }
+    for (const el of document.querySelectorAll("script[src]")) addInsecure(el, el.getAttribute("src"), "script");
+    for (const el of document.querySelectorAll("link[href]")) {
+      const kind = linkKind(el);
+      if (kind) addInsecure(el, el.getAttribute("href"), kind);
+    }
+    for (const el of document.querySelectorAll("iframe[src]")) addInsecure(el, el.getAttribute("src"), "iframe");
+    for (const el of document.querySelectorAll("video[src], audio[src], video[poster]")) {
+      addInsecure(el, el.getAttribute("src"), "media");
+      addInsecure(el, el.getAttribute("poster"), "image");
+    }
+    for (const el of document.querySelectorAll("object[data], embed[src]")) addInsecure(el, el.getAttribute("data") || el.getAttribute("src"), "plugin");
+    for (const el of document.querySelectorAll("form[action]")) addInsecure(el, el.getAttribute("action"), "form");
+    for (const el of document.querySelectorAll("[style*='http:']")) {
+      for (const m of el.getAttribute("style").matchAll(/url\(\s*['"]?(http:[^'")\s]+)/gi)) addInsecure(el, m[1], "image");
+    }
+  }
+
   return {
     targets: targets.map(locateTarget),
     images,
     links,
+    insecure,
   };
 })

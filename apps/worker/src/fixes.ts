@@ -2,6 +2,7 @@
 // in Claude API snippets tailored to the module's actual code.
 import type { AltCheck } from "./checks/alt.js";
 import type { LinkCheck, LinkIssue } from "./checks/links.js";
+import type { MixedContentIssue } from "./checks/page-security.js";
 import type { SecurityResult } from "./checks/security.js";
 import type { Issue } from "./types.js";
 
@@ -321,6 +322,28 @@ export function suggestLinkFix(issue: LinkIssue): FixSuggestion {
   return fixes[issue.check];
 }
 
+// ---------- Mixed content ----------
+
+export function suggestMixedContentFix(issue: MixedContentIssue): FixSuggestion {
+  const https = issue.url.replace(/^http:/, "https:");
+  const where = !issue.location
+    ? "Search the theme CSS and JS (and any embed code) for this URL; the browser loaded it from a stylesheet or script, not the page markup."
+    : issue.location.scope === "content"
+      ? "Edit the URL in the page or post editor (or the CTA tool)."
+      : "Edit the URL in the module or template field that holds it; global modules fix every page at once.";
+  return {
+    summary: issue.blocked
+      ? `Browsers block this http:// ${issue.kind}, so it doesn't load at all on the HTTPS page.`
+      : `Browsers upgrade or warn about this http:// ${issue.kind}; it breaks if the host has no HTTPS.`,
+    steps: [
+      `Change it to ${https} (check that the HTTPS address loads first), or upload the file to HubSpot File Manager.`,
+      where,
+      REVIEW_NOTE,
+    ],
+    snippet: { lang: "text", code: https },
+  };
+}
+
 function path(u: string): string {
   try {
     const url = new URL(u);
@@ -341,6 +364,10 @@ export function suggestSecurityFix(result: SecurityResult): FixSuggestion | null
       `Where: ${result.fixLocation}.`,
       ...(result.id === "header-csp"
         ? ["Deploy as Content-Security-Policy-Report-Only first; HubSpot sites load scripts from many HubSpot and tracking domains."]
+        : []),
+      ...(result.id === "mixed-content" ? ["Each resource, the module it sits in and the pages it's on are listed under Mixed content below."] : []),
+      ...(result.id === "cookies"
+        ? ["Leave HttpOnly off only for a cookie that the site's own JavaScript must read.", "Cloudflare's own cookies (__cf_bm, _cfuvid) are set by Cloudflare; check its settings before changing anything at the origin."]
         : []),
       REVIEW_NOTE,
     ],

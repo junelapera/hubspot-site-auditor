@@ -38,6 +38,9 @@ export interface RunSummary {
   pagesFailed: number;
   namedModuleRate: number;
   durationMs: number;
+  /** Missing on scans from before these checks existed. */
+  mixedContent?: number;
+  scriptDomains?: number;
 }
 
 export interface Run {
@@ -128,6 +131,25 @@ export interface SecurityRow {
   recommended: string;
   fix_location: string;
   fix: Fix | null;
+}
+
+export interface MixedContentRow {
+  id: number;
+  url: string;
+  kind: string;
+  blocked: boolean;
+  scope: Scope;
+  module: string | null;
+  path: string;
+  fix: Fix;
+  pages: string[];
+}
+
+export interface ScriptDomainRow {
+  id: number;
+  domain: string;
+  urls: string[];
+  pages: string[];
 }
 
 export type IssueMarkKind = "wont_fix" | "false_positive";

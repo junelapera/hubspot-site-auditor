@@ -4,9 +4,10 @@ import { DisclosureChevron, NextChevron } from "@/components/chevron";
 import { FixPanel } from "@/components/fix-panel";
 import { MarkControl } from "@/components/mark-control";
 import { ALT_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT } from "@/lib/format";
+import { previousRun } from "@/lib/compare-data";
 import { createClient } from "@/lib/supabase/server";
 import { moduleKey, summarizeModules } from "@/lib/summary";
-import type { Impact, ImageRow, IssueMark, IssueRow, LinkRow, PageRow, SecurityRow } from "@/lib/types";
+import type { Impact, ImageRow, IssueMark, IssueRow, LinkRow, MixedContentRow, PageRow, Run, ScriptDomainRow, SecurityRow } from "@/lib/types";
 
 const IMPACT_ORDER: Record<Impact, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 };
 
@@ -283,40 +284,142 @@ export async function LinksView({ runId }: ViewProps) {
 
 export async function SecurityView({ runId }: ViewProps) {
   const supabase = await createClient();
-  const { data: checks } = await supabase.from("security_checks").select("*").eq("run_id", runId).order("id").returns<SecurityRow[]>();
+  const [{ data: checks }, { data: mixed }, { data: scripts }, { data: run }] = await Promise.all([
+    supabase.from("security_checks").select("*").eq("run_id", runId).order("id").returns<SecurityRow[]>(),
+    supabase.from("mixed_content").select("*").eq("run_id", runId).order("id").returns<MixedContentRow[]>(),
+    supabase.from("script_domains").select("*").eq("run_id", runId).order("id").returns<ScriptDomainRow[]>(),
+    supabase.from("runs").select("site_id, created_at, summary").eq("id", runId).maybeSingle<Pick<Run, "site_id" | "created_at" | "summary">>(),
+  ]);
   if (!checks?.length) return <Empty>No security results for this scan.</Empty>;
+
+  // Script domains this scan loaded that the previous scan didn't. Only when the previous
+  // scan recorded scripts at all; older scans predate the check.
+  const previous = run ? await previousRun(supabase, run) : null;
+  let newDomains: Set<string> | null = null;
+  if (previous?.summary?.scriptDomains !== undefined) {
+    const { data: before } = await supabase.from("script_domains").select("domain").eq("run_id", previous.id);
+    const known = new Set((before ?? []).map((d) => d.domain));
+    newDomains = new Set((scripts ?? []).map((d) => d.domain).filter((d) => !known.has(d)));
+  }
+  const pageChecksRan = run?.summary?.mixedContent !== undefined;
 
   const sorted = checks.sort((a, b) => Number(a.pass) - Number(b.pass));
   return (
-    <section aria-label="Security checks" className="space-y-3">
-      <p className="text-sm text-ink/75">Passive checks only: headers, TLS, and redirects as any browser sees them.</p>
-      <div className="overflow-x-auto card">
-        <table className="w-full min-w-[44rem] text-left text-sm">
-          <thead className="border-b border-ink bg-cream font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink">
-            <tr>
-              <th scope="col" className="px-4 py-2 font-medium">Check</th>
-              <th scope="col" className="px-4 py-2 font-medium">Result</th>
-              <th scope="col" className="px-4 py-2 font-medium">Current</th>
-              <th scope="col" className="px-4 py-2 font-medium">Recommended</th>
-              <th scope="col" className="px-4 py-2 font-medium">Where to fix</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-ink/15 align-top">
-            {sorted.map((c) => (
-              <tr key={c.id}>
-                <th scope="row" className="px-4 py-3 font-medium text-ink">{c.name}</th>
-                <td className="px-4 py-3"><Badge tone={c.pass ? "pass" : "fail"}>{c.pass ? "Pass" : "Fail"}</Badge></td>
-                <td className="max-w-xs break-words px-4 py-3 font-mono text-xs text-ink/85">{c.current}</td>
-                <td className="max-w-xs break-words px-4 py-3 font-mono text-xs text-ink/85">{c.recommended}</td>
-                <td className="px-4 py-3 text-ink/85">{c.fix_location}</td>
+    <div className="space-y-8">
+      <section aria-label="Security checks" className="space-y-3">
+        <p className="text-sm text-ink/75">Passive checks only: headers, TLS, redirects, cookies and page resources as any browser sees them.</p>
+        <div className="overflow-x-auto card">
+          <table className="w-full min-w-[44rem] text-left text-sm">
+            <thead className="border-b border-ink bg-cream font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink">
+              <tr>
+                <th scope="col" className="px-4 py-2 font-medium">Check</th>
+                <th scope="col" className="px-4 py-2 font-medium">Result</th>
+                <th scope="col" className="px-4 py-2 font-medium">Current</th>
+                <th scope="col" className="px-4 py-2 font-medium">Recommended</th>
+                <th scope="col" className="px-4 py-2 font-medium">Where to fix</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {sorted.filter((c) => c.fix).map((c) => (
-        <FixPanel key={c.id} fix={c.fix!} title={`Fix: ${c.name}`} />
-      ))}
-    </section>
+            </thead>
+            <tbody className="divide-y divide-ink/15 align-top">
+              {sorted.map((c) => (
+                <tr key={c.id}>
+                  <th scope="row" className="px-4 py-3 font-medium text-ink">{c.name}</th>
+                  <td className="px-4 py-3"><Badge tone={c.pass ? "pass" : "fail"}>{c.pass ? "Pass" : "Fail"}</Badge></td>
+                  <td className="max-w-xs break-words px-4 py-3 font-mono text-xs text-ink/85">{c.current}</td>
+                  <td className="max-w-xs break-words px-4 py-3 font-mono text-xs text-ink/85">{c.recommended}</td>
+                  <td className="px-4 py-3 text-ink/85">{c.fix_location}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {sorted.filter((c) => c.fix).map((c) => (
+          <FixPanel key={c.id} fix={c.fix!} title={`Fix: ${c.name}`} />
+        ))}
+      </section>
+
+      {pageChecksRan && (
+        <section aria-labelledby="mixed-heading" className="space-y-2">
+          <h2 id="mixed-heading" className="font-display text-2xl font-medium">Mixed content</h2>
+          {!mixed?.length ? (
+            <Empty>No http:// resources on the scanned HTTPS pages.</Empty>
+          ) : (
+            <>
+              <p className="text-sm text-ink/75">http:// resources on HTTPS pages. Browsers block scripts, stylesheets, fonts and iframes, and upgrade or warn about images and media.</p>
+              {mixed.map((m) => (
+                <details key={m.id} className="group card">
+                  <summary className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-4 py-3 text-sm">
+                    <DisclosureChevron />
+                    <Badge tone={m.blocked ? "critical" : "moderate"}>{m.blocked ? `${m.kind}, blocked` : m.kind}</Badge>
+                    <span className="min-w-0 flex-1 truncate font-mono text-ink">{m.url}</span>
+                    <span className="text-xs text-ink/70">
+                      {m.module || m.scope !== "unknown" ? moduleLabel(m.scope, m.module) : "Stylesheet or script"} · {m.pages.length}{" "}
+                      {m.pages.length === 1 ? "page" : "pages"}
+                    </span>
+                  </summary>
+                  <div className="grid gap-3 border-t border-ink/30 p-4 lg:grid-cols-2">
+                    <div className="space-y-2 text-xs">
+                      <p className="break-all font-mono text-ink/85">{m.url}</p>
+                      {m.path && <p className="break-all font-mono text-ink/70">{m.path}</p>}
+                      <h4 className="pt-2 font-medium text-ink/70">Found on</h4>
+                      <PageList pages={m.pages} />
+                    </div>
+                    <FixPanel fix={m.fix} />
+                  </div>
+                </details>
+              ))}
+            </>
+          )}
+        </section>
+      )}
+
+      {pageChecksRan && (
+        <section aria-labelledby="scripts-heading" className="space-y-2">
+          <h2 id="scripts-heading" className="font-display text-2xl font-medium">Third-party scripts</h2>
+          {!scripts?.length ? (
+            <Empty>The scanned pages loaded no scripts from other domains.</Empty>
+          ) : (
+            <>
+              <p className="text-sm text-ink/75">
+                Every outside domain the scanned pages loaded scripts from.
+                {newDomains
+                  ? newDomains.size
+                    ? ` ${newDomains.size} ${newDomains.size === 1 ? "is" : "are"} new since the previous scan.`
+                    : " None are new since the previous scan."
+                  : ""}
+              </p>
+              <div className="overflow-x-auto card">
+                <table className="w-full min-w-[36rem] text-left text-sm">
+                  <thead className="border-b border-ink bg-cream font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-ink">
+                    <tr>
+                      <th scope="col" className="px-4 py-2 font-medium">Domain</th>
+                      <th scope="col" className="px-4 py-2 font-medium">Pages</th>
+                      <th scope="col" className="px-4 py-2 font-medium">Example scripts</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-ink/15 align-top">
+                    {scripts.map((d) => (
+                      <tr key={d.id}>
+                        <th scope="row" className="px-4 py-3 font-medium text-ink">
+                          <span className="mr-2 break-all font-mono text-xs">{d.domain}</span>
+                          {newDomains?.has(d.domain) && <span className="chip bg-pink">New</span>}
+                        </th>
+                        <td className="px-4 py-3 tabular-nums text-ink/85">{d.pages.length}</td>
+                        <td className="px-4 py-3">
+                          <ul className="space-y-0.5 font-mono text-xs text-ink/85">
+                            {d.urls.map((u) => (
+                              <li key={u} className="break-all">{u}</li>
+                            ))}
+                          </ul>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </section>
+      )}
+    </div>
   );
 }

@@ -38,7 +38,7 @@ const result = await runAudit(
   },
 );
 
-const { stats, modules, issues, images, links, security } = result;
+const { stats, modules, issues, images, links, security, mixedContent, scripts } = result;
 console.log(`\n${stats.rawFindings} page-level findings → ${issues.length} unique issues in ${modules.length} groups`);
 const secs = (ms: number) => `${(ms / 1000).toFixed(0)}s`;
 console.log(
@@ -79,6 +79,20 @@ console.table(
 
 console.log(`\nSecurity: ${security.filter((s) => !s.pass).length} of ${security.length} checks failed`);
 console.table(security.map((s) => ({ Check: s.name, Result: s.pass ? "pass" : "FAIL", Current: s.current.slice(0, 70), "Fix lives in": s.fixLocation })));
+
+console.log(`\nMixed content: ${mixedContent.length}`);
+console.table(
+  mixedContent.slice(0, 15).map((m) => ({
+    Kind: m.kind,
+    Blocked: m.blocked ? "yes" : "",
+    URL: m.url.slice(0, 70),
+    Module: m.location ? moduleLabel(m.location.scope, m.location.module) : "(stylesheet or script)",
+    Pages: m.pages.length,
+  })),
+);
+
+console.log(`\nThird-party script domains: ${scripts.length}`);
+console.table(scripts.map((s) => ({ Domain: s.domain, Pages: s.pages.length, Example: s.urls[0]?.slice(0, 70) })));
 
 mkdirSync("scans", { recursive: true });
 const out = `scans/${result.siteHost}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;

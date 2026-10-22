@@ -126,6 +126,12 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
               { kind: "images", label: "Images" },
               { kind: "links", label: "Links" },
               { kind: "security", label: "Security" },
+              ...(s?.mixedContent !== undefined
+                ? [
+                    { kind: "mixed-content", label: "Mixed content" },
+                    { kind: "scripts", label: "Third-party scripts" },
+                  ]
+                : []),
             ].map((e) => (
               <a
                 key={e.kind}

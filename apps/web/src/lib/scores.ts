@@ -29,10 +29,12 @@ export const SECURITY_PENALTY: Record<string, number> = {
   hsts: 10,
   "header-csp": 10,
   "header-x-frame-options": 10,
+  "mixed-content": 10,
   "header-x-content-type-options": 5,
   "header-referrer-policy": 5,
   "header-permissions-policy": 5,
   "version-leak": 5,
+  cookies: 5,
 };
 
 export type Grade = "A" | "B" | "C" | "D" | "F";

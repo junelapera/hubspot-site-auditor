@@ -13,7 +13,7 @@ See the [PRD](HubSpot%20Site%20Auditor%20—%20PRD.md) for the full spec and [ST
 | Accessibility | axe-core (WCAG 2.1 / 2.2 A and AA) on every sitemap page, each failing element mapped to its module |
 | Alt text | Missing, file-name, generic, empty-on-link, too-long, and redundant alt on page images |
 | Links | Broken internal links, redirect chains, redirects to dead pages, internal `http://` links |
-| Security | HTTPS redirect, HSTS, TLS versions, certificate expiry, security headers, version leaks |
+| Security | HTTPS redirect, HSTS, TLS versions, certificate expiry, security headers, version leaks, mixed content (mapped to modules), cookie flags, third-party script domains (new ones flagged) |
 
 Every issue comes with a suggested fix: a corrected HTML / HubL / CSS snippet, an editor setting, a redirect row, or a header value.
 
@@ -47,7 +47,7 @@ Any issue can be marked **won't fix** or **false positive** with a note. Marks b
 Each scan gets an **accessibility score** (0–100) and a **security grade** (A–F), shown on the report with the change since the previous scan, and next to every scan in the site's history.
 
 - **Accessibility score:** each scanned page starts at 100 and loses 15 / 8 / 3 / 1 points per critical / serious / moderate / minor issue on it (never below 0); the score is the average over scanned pages. Automated (axe) issues only; marked issues don't count.
-- **Security grade:** 100 minus points per failed check (20 for old TLS or certificate expiry; 10 for the HTTPS redirect, HSTS, CSP, X-Frame-Options; 5 for the rest). A is 90+, B 80+, C 70+, D 60+, otherwise F. It's the tool's own measure, not a SecurityScorecard grade.
+- **Security grade:** 100 minus points per failed check (20 for old TLS or certificate expiry; 10 for the HTTPS redirect, HSTS, CSP, X-Frame-Options, mixed content; 5 for the rest). A is 90+, B 80+, C 70+, D 60+, otherwise F. It's the tool's own measure, not a SecurityScorecard grade.
 
 Scores are worked out when a page is shown (`apps/web/src/lib/scores.ts`), so changing a weight changes every past scan's score too.
 
@@ -64,7 +64,7 @@ The worker claims a queued run, then:
 1. **Crawl:** reads `sitemap.xml` (and nested sitemaps), applies path filters and the page limit.
 2. **Scan:** loads each page in headless Chromium and runs axe-core.
 3. **Map source:** walks from each failing element up to its HubSpot module wrapper and names the module by its root BEM class. This is the step other scanners don't have.
-4. **Check:** alt text, internal links, and security headers / TLS.
+4. **Check:** alt text, internal links, security headers / TLS, and what the browser loaded (mixed content, cookies, third-party scripts).
 5. **Suggest and save:** attaches a template fix to every issue and writes everything back to Supabase.
 
 The worker runs separately from the web app because headless browsers don't fit serverless function limits. In production it runs on GitHub Actions; see [Deploying](#deploying).
@@ -175,5 +175,5 @@ pnpm build       # web app production build
 ## Roadmap
 
 - **Phase 1 — MVP:** module-aware scan, alt text, internal links, security headers, fix suggestions, report views, CSV export. [phases/phase-1-mvp.md](phases/phase-1-mvp.md)
-- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, and scores done): forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
+- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, scores, mixed content, cookie and third-party script checks done): forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
 - **Phase 3 — Client-facing:** shareable reports, scheduled scans, Teamwork push, CMS API module paths, Claude API fixes. [phases/phase-3-client-facing.md](phases/phase-3-client-facing.md)

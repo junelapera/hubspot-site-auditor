@@ -11,7 +11,10 @@ export type SecurityCheckId =
   | "header-x-content-type-options"
   | "header-referrer-policy"
   | "header-permissions-policy"
-  | "version-leak";
+  | "version-leak"
+  // From the scanned pages (checks/page-security.ts):
+  | "mixed-content"
+  | "cookies";
 
 export interface SecurityResult {
   id: SecurityCheckId;

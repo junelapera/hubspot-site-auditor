@@ -29,6 +29,23 @@ export interface LinkInfo {
   location: Location;
 }
 
+export type InsecureKind = "script" | "stylesheet" | "font" | "image" | "media" | "iframe" | "form" | "plugin" | "other";
+
+/** An http:// resource on an HTTPS page. location is null when only the browser console reported it. */
+export interface InsecureResource {
+  url: string;
+  kind: InsecureKind;
+  location: Location | null;
+}
+
+/** A cookie set by a first-party Set-Cookie header. Values are never kept. */
+export interface CookieInfo {
+  name: string;
+  secure: boolean;
+  httpOnly: boolean;
+  sameSite: string | null;
+}
+
 /** One failing axe node on one page. */
 export interface AxeFinding {
   ruleId: string;
@@ -51,6 +68,10 @@ export interface PageResult {
   findings: AxeFinding[];
   images: ImageInfo[];
   links: LinkInfo[];
+  insecure: InsecureResource[];
+  cookies: CookieInfo[];
+  /** Every script URL the page requested, first- and third-party. */
+  scripts: string[];
 }
 
 /** A deduplicated issue: same rule + same element path + same module, across pages. */

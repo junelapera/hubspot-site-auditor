@@ -1,9 +1,17 @@
 import { dedupeIssues, namedModuleRate, summarizeModules } from "./aggregate.js";
 import { auditImages, type FlaggedImage } from "./checks/alt.js";
 import { auditInternalLinks, type LinkIssue } from "./checks/links.js";
+import {
+  auditMixedContent,
+  auditThirdPartyScripts,
+  checkCookies,
+  checkMixedContent,
+  type MixedContentIssue,
+  type ScriptDomain,
+} from "./checks/page-security.js";
 import { checkSecurity, type SecurityResult } from "./checks/security.js";
 import { crawlSitemap, type CrawlOptions } from "./crawl.js";
-import { suggestAltFix, suggestAxeFix, suggestLinkFix, suggestSecurityFix, type FixSuggestion } from "./fixes.js";
+import { suggestAltFix, suggestAxeFix, suggestLinkFix, suggestMixedContentFix, suggestSecurityFix, type FixSuggestion } from "./fixes.js";
 import { scanPages } from "./scan.js";
 import type { Issue, ModuleSummary, PageResult } from "./types.js";
 
@@ -29,6 +37,8 @@ export interface AuditResult {
   images: (FlaggedImage & { fixes: FixSuggestion[] })[];
   links: (LinkIssue & { fix: FixSuggestion })[];
   security: (SecurityResult & { fix: FixSuggestion | null })[];
+  mixedContent: (MixedContentIssue & { fix: FixSuggestion })[];
+  scripts: ScriptDomain[];
   stats: {
     pagesScanned: number;
     pagesFailed: number;
@@ -39,7 +49,7 @@ export interface AuditResult {
   };
 }
 
-/** Crawl → scan → map to modules → alt / links / security → fix suggestions. */
+/** Crawl → scan → map to modules → alt / links / security / mixed content / scripts → fix suggestions. */
 export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promise<AuditResult> {
   const started = Date.now();
   const mark = (() => {
@@ -72,7 +82,8 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
   const linksMs = mark();
 
   await hooks.onStage?.("security");
-  const security = await checkSecurity(siteHost);
+  const mixedContent = auditMixedContent(pages);
+  const security = [...(await checkSecurity(siteHost)), checkMixedContent(mixedContent), checkCookies(pages)];
   const securityMs = mark();
 
   return {
@@ -84,6 +95,8 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
     images: auditImages(pages).map((i) => ({ ...i, fixes: suggestAltFix(i.checks) })),
     links: links.map((l) => ({ ...l, fix: suggestLinkFix(l) })),
     security: security.map((s) => ({ ...s, fix: suggestSecurityFix(s) })),
+    mixedContent: mixedContent.map((m) => ({ ...m, fix: suggestMixedContentFix(m) })),
+    scripts: auditThirdPartyScripts(pages, siteHost),
     stats: {
       pagesScanned: pages.filter((p) => !p.error).length,
       pagesFailed: pages.filter((p) => p.error).length,
