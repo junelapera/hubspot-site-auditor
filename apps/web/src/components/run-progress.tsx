@@ -44,7 +44,13 @@ export function RunProgress({ initial }: { initial: Progress }) {
       </p>
     );
   }
-  if (run.status !== "running") return null;
+  // Shown briefly between the poll seeing the end and the page refresh arriving.
+  if (run.status === "done") {
+    return <p className="text-sm text-slate-700" role="status">Scan finished — loading results…</p>;
+  }
+  if (run.status === "failed") {
+    return <p className="text-sm text-red-700" role="alert">Scan failed: {run.error ?? "unknown error"}</p>;
+  }
 
   const pct = run.pages_total ? Math.round((run.pages_done / run.pages_total) * 100) : 0;
   return (

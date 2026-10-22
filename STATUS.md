@@ -11,7 +11,7 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Scanner (worker) | Crawl, axe scan, module mapping, dedupe, alt / link / security checks, fix suggestions. Runs locally (CLI) and from the Supabase queue. |
 | Database | Schema, queue (`claim_run`), and `module_summary` view applied to Supabase. Sign-up and reads limited to @saltedstone.com, tested on the live project. |
 | Web app | Magic-link login, sites, run a scan with live progress, report with Modules / Pages / Images / Links / Security tabs and copyable fixes. Runs locally. "Run scan" triggers the GitHub Actions worker when `GITHUB_DISPATCH_TOKEN` is set. |
-| Worker hosting | GitHub Actions workflow (`scan.yml`): on dispatch, by hand, and every 15 min. Verified: a 5-page scan completed in 1m19s of job time (22s scanning); public log shows run IDs only. |
+| Worker hosting | GitHub Actions workflow (`scan.yml`): on dispatch, by hand, and every 15 min. Verified from the app's "Run scan" button: a 5-page scan started 42s after the click (Chromium cached) and finished 15s later. Public log shows run IDs only. |
 | Tests | 28 worker unit tests; both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
@@ -28,10 +28,9 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 ## Next
 
 1. **CSV exports:** issues (Teamwork / Jira import), flagged images, security checks.
-2. **Deploy the web app** to Vercel: Root Directory `apps/web`, Supabase env vars, and `GITHUB_DISPATCH_TOKEN` (fine-grained PAT, Actions: read and write). Add the production URL to Supabase Auth redirect URLs.
-3. **Confirm "Run scan" from the deployed app** starts the workflow. The worker itself is verified via a manual dispatch.
-4. **Custom SMTP** in Supabase Auth, so teammates can receive sign-in emails.
-5. **Acceptance runs** on 3 client sites: named-module rate, alt-text false positives, a SecurityScorecard comparison, and a 200-page timing.
+2. **Deploy the web app** to Vercel: Root Directory `apps/web`, the Supabase env vars, `GITHUB_DISPATCH_TOKEN`, and `GITHUB_REPOSITORY`. Add the production URL to Supabase Auth redirect URLs.
+3. **Custom SMTP** in Supabase Auth, so teammates can receive sign-in emails.
+4. **Acceptance runs** on 3 client sites: named-module rate, alt-text false positives, a SecurityScorecard comparison, and a 200-page timing.
 
 ## Known issues and decisions
 
@@ -41,6 +40,7 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - **Supabase default email** sends only a few emails per hour, and only to members of the Supabase organization. Teammates need custom SMTP before they can sign in.
 - **Worker runs on GitHub Actions, not Railway** (the PRD's choice). It's free on a public repo, at the cost of ~1–2 min startup per scan. Logs are public, so the worker runs with `REDACT_LOGS=1`.
 - **Cache Components is off** in the web app on purpose: every page is per-user live data.
+- **GitHub dispatch token expires 2027-01-20.** After that, "Run scan" falls back to the 15-minute schedule until a new token is set in `apps/web/.env.local` and Vercel.
 - **Test user:** `june.lapera@saltedstone.com` was created through the admin API to test the login flow.
 
 ## Open questions
