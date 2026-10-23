@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState } from "react";
-import { addSite, queueListedRun, queueRun, queueSampledRun, updateSiteSettings, type FormState, type ListedRunState } from "@/lib/actions";
+import { useActionState, useState } from "react";
+import { addSite, deleteSite, queueListedRun, queueRun, queueSampledRun, updateSiteSettings, type FormState, type ListedRunState } from "@/lib/actions";
 import { MAX_LISTED_URLS } from "@/lib/url-list";
 import type { Site } from "@/lib/types";
 
@@ -155,6 +155,40 @@ export function ScanUrlsForm({ site, disabled }: { site: Site; disabled?: boolea
         {disabled && <p className="text-sm text-ink/75">A scan is already queued or running.</p>}
       </div>
       <ErrorText state={state} id="urls-error" />
+    </form>
+  );
+}
+
+export function DeleteSiteForm({ site, scanCount, disabled }: { site: Site; scanCount: number; disabled?: boolean }) {
+  const [state, action, pending] = useActionState(deleteSite.bind(null, site.id), {});
+  const [typed, setTyped] = useState("");
+  const matches = typed.trim().toLowerCase() === site.domain;
+  return (
+    <form action={action} className="space-y-3">
+      <p id="delete-site-help" className="text-sm text-ink/85">
+        {scanCount > 0
+          ? `Deletes ${site.domain}, its ${scanCount} ${scanCount === 1 ? "scan" : "scans"} with every report and CSV, and its won't fix / false positive marks, for everyone on the team.`
+          : `Deletes ${site.domain} for everyone on the team. It has no scans yet.`}{" "}
+        This can&apos;t be undone.
+        {disabled && " A scan is queued or running: wait for it to finish first."}
+      </p>
+      <div className="max-w-sm">
+        <label htmlFor="confirm-delete" className="label">Type {site.domain} to confirm</label>
+        <input
+          id="confirm-delete"
+          name="confirm"
+          autoComplete="off"
+          spellCheck={false}
+          value={typed}
+          onChange={(e) => setTyped(e.target.value)}
+          aria-describedby="delete-site-help delete-site-error"
+          className="input mt-1"
+        />
+      </div>
+      <button type="submit" disabled={!matches || pending || disabled} className="btn btn-danger">
+        {pending ? "Deleting…" : "Delete site"}
+      </button>
+      <ErrorText state={state} id="delete-site-error" />
     </form>
   );
 }

@@ -1,6 +1,6 @@
 # Status
 
-Last updated: Oct 23, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 in progress (comparison, scores, all security checks, external links, anchors, WCAG view, form check, URL lists, sampling, mobile-width scan done)**
+Last updated: Oct 23, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 in progress (comparison, scores, all security checks, external links, anchors, WCAG view, form check, URL lists, sampling, mobile-width scan, link replacement fixes done)**
 
 The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This file is the short version: what works, what's next, and what's blocking.
 
@@ -11,7 +11,7 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Scanner (worker) | Crawl, axe scan, module mapping, dedupe, alt / link / security checks, fix suggestions. Runs locally (CLI) and from the Supabase queue. |
 | Database | Schema, queue (`claim_run`), and `module_summary` view applied to Supabase. Accounts and reads limited to @saltedstone.com, tested on the live project. |
 | Accounts | Invite-only. Public sign-up is off in Supabase Auth (verified: the API returns `signup_disabled`); invites still work through the admin API. Email confirmation stays on. First account (june.lapera@saltedstone.com) is set up with a password. |
-| Web app | Invite-only accounts (@saltedstone.com): members create one-time invite links on the Team page, no email needed; email + password sign-in; sites, run a scan with live progress, report with Modules / Pages / Images / Links / Security tabs and copyable fixes. Deployed to Vercel; pushes to `main` deploy production. "Run scan" in production verified: the worker started 47s after the click. |
+| Web app | Invite-only accounts (@saltedstone.com): members create one-time invite links on the Team page, no email needed; email + password sign-in; sites (add, edit settings, delete with typed-domain confirmation), run a scan with live progress, report with Modules / Pages / Images / Links / Security tabs and copyable fixes. Deployed to Vercel; pushes to `main` deploy production. "Run scan" in production verified: the worker started 47s after the click. |
 | Worker hosting | GitHub Actions workflow (`scan.yml`): on dispatch, by hand, and every 15 min. Verified from the app's "Run scan" button: a 5-page scan started 42s after the click (Chromium cached) and finished 15s later. Public log shows run IDs only. |
 | CSV exports | Issues (one row per module + rule, Teamwork / Jira columns), images, links, security. Download buttons on every report. Formula-injection safe, UTF-8 BOM for Excel. |
 | Run comparison (Phase 2) | Compare any two scans of a site by issue fingerprint: fixed / new / still open / not rechecked. Report page shows the change since the previous scan; full comparison at `/runs/:id/compare`. Issues can be marked won't fix or false positive with a note; marks are per site, hide the issue in every scan (toggle to show), and keep it out of the issues CSV. Verified: two identical scans show 0 fixed, 0 new. |
@@ -25,9 +25,10 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Sampled scan (Phase 2) | "Sampled scan" button next to "Run scan": reads every sitemap page's HTML (plain GET, 4 at a time, up to 2,000 pages), names its modules the way the browser scanner does, then scans the fewest pages that cover every module, global partial and template wrapper (greedy, up to the page limit). Progress shows pages read; the report and scan list say how many modules the sample covers. On saltedstone.com, 2 of 212 case-study pages cover all 28 modules in that section; 10 of all 584 pages cover 146 of 191 modules. Reading runs at ~2.7 pages/s (584 pages in 217s, no rate limiting). CLI: `--sample`. |
 | Alt-text fixes (Phase 2) | Each flagged image's fix quotes the current alt and says why it fails, gives an example of good alt for its kind of image (logo, icon, chart, person, screenshot or photo, guessed from file name, alt, module and size), names the link destination for linked images, and says where to edit it (module field, rich text editor, global module or template). New scans only. |
 | Mobile-width scan (Phase 2) | Every scan runs axe a second time per page at 390px (`isMobile`, so the page's meta viewport applies), in a fresh browser context. Issues are deduped across both widths by the same fingerprint (width isn't part of it) and store `viewports`; the report shows "Mobile only" / "Desktop only" chips, the header says which widths ran, the Pages tab notes a failed mobile pass, and the issues CSV has a "Found at" column. Comparisons put issues found only at a width the older scan didn't check under "First at mobile width" instead of "new", and an issue isn't "fixed" unless the newer scan checked a width it was found at. Images, links, forms and security come from desktop only. saltedstone.com (3 pages): 5 issues, 1 desktop only and 1 mobile only (the sticky bar's `img.desktop` / `img.mobile`); compared with the previous scan, 0 new, 1 first at mobile width. CLI: `--desktop-only`. |
+| Link replacement fixes (Phase 2) | Dead internal links (and redirects to dead pages) get a likely replacement from the live pages (sitemap + scanned): the same page name at another path, then the most words in common, then the nearest live parent; never the home page, and no guess when two candidates tie. Broken anchors get the closest ID on the target page (same letters, or a near spelling). Dead external links get the Wayback Machine's latest good copy (up to 50 lookups per scan, 1s apart). The Links tab shows the replacement and a "Replacement found" chip; fixes carry a ready-made HubSpot redirect row. "Download redirects CSV" on the Links tab builds one import file (HubSpot's sample columns, 301, no BOM, one row per old URL, URLs over 140 characters left out, 500 max): dead link to its replacement, chain start to its final URL. Links CSV has "Likely replacement" / "Why". Tried against saltedstone.com's 584-page sitemap with made-up dead URLs: moved, shortened and extended slugs all matched the right page. New scans only. |
 | Look and feel | Salted Stone brand from saltedstone.com: cream / ink palette, logo and S² favicon, serif headings, mono uppercase labels, orange pill buttons, brand-colored severity chips, chevron icons, brand-styled dropdowns (Radix Select). Every color pair contrast-checked. |
 | Accessibility of the app itself | axe (WCAG 2.2 AA) passes on all 12 screens. No sideways scrolling down to 320px wide. |
-| Tests | 56 worker + 28 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
+| Tests | 66 worker + 30 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
 
@@ -42,17 +43,18 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 
 ## Pick up here (Oct 23)
 
-- Production is current: https://hubspot-site-auditor.vercel.app (latest: mobile-width scan, with "Mobile only" / "Desktop only" chips and "First at mobile width" in comparisons). The `issues.viewports` / `pages.mobile_error` migration is applied.
+- Production is current: https://hubspot-site-auditor.vercel.app (latest: delete a site; likely replacements for broken links and a redirects CSV for HubSpot import; mobile-width scan). Migrations through `20261023000200_delete_sites.sql` are applied.
 - Local: `pnpm dev` (web on :3000) and, optionally, `pnpm worker`. If CSS looks stale after a `pnpm build`, stop the dev server, delete `apps/web/.next`, and start it again.
 - Waiting on: 3 client domains (and SecurityScorecard reports if available) for the Phase 1 acceptance runs.
-- Ready to start without input: the rest of Phase 2 (link replacement fixes, old-sitemap redirect check). File Manager pass needs a HubSpot private app token.
+- Ready to start without input: the rest of Phase 2 (old-sitemap redirect check, which can reuse the slug matcher). File Manager pass needs a HubSpot private app token.
 
 ## Next
 
 1. **Acceptance runs** on 3 client sites (ideally different themes): named-module rate (90%+), alt-text false positives (under 10%), a SecurityScorecard comparison (90%+ match), a 200-page timing (under 15 min), and a test import of the issues CSV into Teamwork. Needs: the 3 domains, and SecurityScorecard reports if available.
 2. **Custom SMTP** in Supabase Auth (optional): only needed for "Forgot password?" emails. Invites don't use email.
 3. **Confirm the form check creates no contacts:** after a scan of a site with forms, check its HubSpot CRM for new contacts. The network side is already verified.
-4. **Phase 2, next items:** link replacement fixes, old-sitemap redirects, File Manager pass, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
+4. **Test-import the redirects CSV into HubSpot** (needs a portal with URL redirects; Marketing Hub Pro / Content Hub Starter+). The file copies HubSpot's sample columns, but the KB doesn't say which are required, and `priority` is left blank.
+5. **Phase 2, next items:** old-sitemap redirects, File Manager pass, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
 
 ## Known issues and decisions
 
@@ -92,6 +94,11 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - **Mobile pass doubles the axe work.** Each page is loaded twice (desktop, then mobile, 0.5s apart, same 429 back-off). On 3 saltedstone.com pages the scan stage took 14s. Re-check the 200-page timing in the acceptance runs; `--desktop-only` / `mobile: false` turns it off.
 - **Mobile issues lower the accessibility score.** The score counts every issue on a page, so the first scan with the mobile pass can score lower than the one before it with nothing changed on the site.
 - **Mobile pass uses the scanner's own user agent**, not a phone's. HubSpot themes are responsive (CSS media queries), so width is what matters; a site that serves different HTML by user agent would show its desktop markup at phone width.
+
+- **Link replacements are guesses.** Slug matching can pick a page with a similar name but different content; fixes say "review before applying", and the redirects CSV should be read before import. Pages that aren't in the sitemap and weren't scanned can't be suggested.
+- **Wayback lookups go to archive.org** (the public availability API), one per dead external link, up to 50 per scan. If archive.org is slow or down, links just get no suggestion.
+
+- **Deleting a site is permanent** and removes its scans, every report row and its marks (database cascades). The delete policy refuses it while a scan is queued or running (`20261023000200_delete_sites.sql`), so the worker never writes results for a site that's gone. Tested with PGlite (outsider: refused; busy site: refused; idle site: site, runs, pages and marks gone) and in the app on a throwaway site.
 
 ## Open questions
 

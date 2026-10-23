@@ -43,6 +43,8 @@ Re-scan a site after fixes and the report shows what changed since its previous 
 
 Any issue can be marked **won't fix** or **false positive** with a note. Marks belong to the site, so the issue stays hidden in every scan of that site until someone unmarks it; a toggle on the report shows marked issues. Marked issues are left out of the counts and the issues CSV.
 
+Broken links come with a likely replacement where one can be found: a live page with a similar address, the closest ID for a broken anchor, or an archived copy for a dead external page. **Download redirects CSV** on the Links tab gives a file for HubSpot's URL redirect import (Settings, Domains & URLs, URL redirects, Import). Review it before importing; the replacements are guesses.
+
 ## Scores
 
 Each scan gets an **accessibility score** (0–100) and a **security grade** (A–F), shown on the report with the change since the previous scan, and next to every scan in the site's history.
@@ -139,6 +141,8 @@ Every scan runs axe twice per page, at desktop (1366px) and mobile (390px) width
 
 In the app, **Scan specific pages** on a site does the same: paste URLs or paths, then scan only those or the sitemap plus those. **Sampled scan** is the `--sample` mode, for a fast first pass on a large site.
 
+**Delete site** at the bottom of a site's page removes the site with all its scans and marks, for the whole team. Type the domain to confirm. It's refused while a scan is queued or running.
+
 Keep `--limit` small while developing. HubSpot's Cloudflare edge rate-limits quickly; the scanner backs off on HTTP 429, but repeated full scans will still get throttled.
 
 ## Deploying
@@ -184,5 +188,5 @@ pnpm build       # web app production build
 ## Roadmap
 
 - **Phase 1 — MVP:** module-aware scan, alt text, internal links, security headers, fix suggestions, report views, CSV export. [phases/phase-1-mvp.md](phases/phase-1-mvp.md)
-- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, scores, security checks, external links, anchors, WCAG view, form check, URL lists, sampling, and mobile-width scan done): forms, File Manager, external links, old-URL redirects. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
+- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, scores, security checks, external links, anchors, WCAG view, form check, URL lists, sampling, mobile-width scan, and link replacement fixes done): forms, File Manager, external links, old-URL redirects. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
 - **Phase 3 — Client-facing:** shareable reports, scheduled scans, Teamwork push, CMS API module paths, Claude API fixes. [phases/phase-3-client-facing.md](phases/phase-3-client-facing.md)

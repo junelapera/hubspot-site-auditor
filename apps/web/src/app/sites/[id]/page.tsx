@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LocalTime, TimeAgo } from "@/components/local-time";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/badge";
-import { QueueRunButton, ScanUrlsForm, SiteSettingsForm } from "@/components/forms";
+import { DeleteSiteForm, QueueRunButton, ScanUrlsForm, SiteSettingsForm } from "@/components/forms";
 import { RunProgress } from "@/components/run-progress";
 import { BackChevron, DisclosureChevron } from "@/components/chevron";
 import { GradeChip } from "@/components/scores";
@@ -15,9 +15,11 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
   const { id } = await params;
   const { supabase } = await requireUser();
 
-  const [{ data: site }, { data: runs }] = await Promise.all([
+  const [{ data: site }, { data: runs }, { count: scanCount }] = await Promise.all([
     supabase.from("sites").select("*").eq("id", id).maybeSingle<Site>(),
     supabase.from("runs").select("*").eq("site_id", id).order("created_at", { ascending: false }).limit(50).returns<Run[]>(),
+    // The list shows the latest 50; the delete warning needs them all.
+    supabase.from("runs").select("id", { count: "exact", head: true }).eq("site_id", id),
   ]);
   if (!site) notFound();
 
@@ -134,6 +136,17 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
           </ul>
         )}
       </section>
+
+      <details className="group card">
+        <summary className="flex cursor-pointer select-none flex-wrap items-center gap-x-2 px-4 py-3">
+          <DisclosureChevron />
+          <span className="eyebrow">Delete site</span>
+          <span className="text-sm text-ink/75">remove this site and all its scans</span>
+        </summary>
+        <div className="border-t border-ink/30 p-4">
+          <DeleteSiteForm site={site} scanCount={scanCount ?? 0} disabled={Boolean(active)} />
+        </div>
+      </details>
     </main>
   );
 }

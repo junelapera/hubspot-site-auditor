@@ -60,6 +60,10 @@ summary::-webkit-details-marker {
   .btn-secondary {
     @apply bg-paper hover:bg-cream;
   }
+  /* Destructive actions (delete site). Ink on pink is 9.3:1. */
+  .btn-danger {
+    @apply bg-pink hover:bg-orange;
+  }
   .btn-sm {
     @apply px-3 py-1.5 text-[11px];
   }
