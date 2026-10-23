@@ -5,6 +5,7 @@ import { FixPanel } from "@/components/fix-panel";
 import { MarkControl } from "@/components/mark-control";
 import { ALT_CHECK_LABEL, FORM_CHECK_IMPACT, FORM_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT, widthOnly } from "@/lib/format";
 import { previousRun } from "@/lib/compare-data";
+import { MAX_REDIRECT_ROWS, redirectRows } from "@/lib/exports";
 import { createClient } from "@/lib/supabase/server";
 import { summarizeRules, WCAG_SC } from "@/lib/rules";
 import { moduleKey, summarizeModules } from "@/lib/summary";
@@ -341,9 +342,24 @@ export async function LinksView({ runId }: ViewProps) {
     );
   }
 
+  const redirects = redirectRows(links).length;
+
   return (
     <section aria-label="Link issues" className="space-y-2">
       {externalNote}
+      {redirects > 0 && (
+        <div className="card flex flex-wrap items-center gap-3 p-4 text-sm">
+          <p className="min-w-0 flex-1 text-ink/85">
+            {redirects} {redirects === 1 ? "redirect" : "redirects"} ready for HubSpot&apos;s bulk import (in HubSpot settings, Domains &amp; URLs, then
+            URL redirects, then Import): dead links to their likely replacement, and redirect chains straight to the final page. Review the
+            file first, and tick &ldquo;Overwrite existing redirects&rdquo; so chains are replaced.
+            {redirects > MAX_REDIRECT_ROWS && ` HubSpot takes ${MAX_REDIRECT_ROWS} at a time, so only the first ${MAX_REDIRECT_ROWS} are in the file.`}
+          </p>
+          <a href={`/runs/${runId}/export/redirects`} download className="btn btn-secondary btn-sm">
+            Download redirects CSV
+          </a>
+        </div>
+      )}
       {links.map((l) => (
         <details key={l.id} className="group card">
           <summary className="flex cursor-pointer select-none flex-wrap items-center gap-3 px-4 py-3 text-sm">
@@ -362,11 +378,21 @@ export async function LinksView({ runId }: ViewProps) {
                   ))
                 : l.error}
             </span>
+            {l.replacement && <span className="chip bg-mint">Replacement found</span>}
             <span className="text-xs text-ink/70">{moduleLabel(l.scope, l.module)} · {l.pages.length} {l.pages.length === 1 ? "page" : "pages"}</span>
           </summary>
           <div className="grid gap-3 border-t border-ink/30 p-4 lg:grid-cols-2">
             <div className="space-y-2 text-xs">
               {l.text && <p className="text-ink/85">Link text: “{l.text}”</p>}
+              {l.replacement && (
+                <p className="rounded-lg border border-ink/30 bg-paper p-2 text-ink">
+                  <span className="font-medium">Likely replacement:</span>{" "}
+                  <a href={l.replacement.url} target="_blank" rel="noreferrer" className="link break-all font-mono">
+                    {l.check === "broken-external" ? l.replacement.url : pathOf(l.replacement.url) + new URL(l.replacement.url).hash}
+                  </a>
+                  <span className="block text-ink/75">{l.replacement.reason}</span>
+                </p>
+              )}
               <ol className="space-y-0.5 font-mono text-ink/75">
                 {l.hops.map((h, i) => (
                   <li key={i}>{h.status} {pathOf(h.url)}</li>

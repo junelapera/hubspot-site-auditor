@@ -8,6 +8,7 @@ import {
   librariesCsv,
   linksCsv,
   mixedContentCsv,
+  redirectsCsv,
   rulesCsv,
   scriptsCsv,
   securityCsv,
@@ -57,6 +58,11 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/e
     case "links": {
       const { data } = await supabase.from("links").select("*").eq("run_id", id).returns<LinkRow[]>();
       csv = linksCsv(data ?? []);
+      break;
+    }
+    case "redirects": {
+      const { data } = await supabase.from("links").select("*").eq("run_id", id).returns<LinkRow[]>();
+      csv = redirectsCsv(data ?? []);
       break;
     }
     case "security": {

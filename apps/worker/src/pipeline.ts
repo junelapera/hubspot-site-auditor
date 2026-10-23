@@ -11,6 +11,7 @@ import {
   type MixedContentIssue,
   type ScriptDomain,
 } from "./checks/page-security.js";
+import { archivedCopies, suggestPage } from "./checks/replacements.js";
 import { checkSecurity, type SecurityResult } from "./checks/security.js";
 import { crawlSitemap, type CrawlOptions } from "./crawl.js";
 import {
@@ -134,6 +135,13 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
     auditExternalLinks(pages, siteHost),
   ]);
   const links = [...internal, ...external.issues, ...auditAnchors(pages, siteHost)];
+  // Likely replacements: a live page with a similar slug for dead internal links, an archived copy for dead external ones.
+  const livePages = [...crawl.sitemapUrls, ...pages.filter((p) => p.status === 200 && !p.redirected).map((p) => p.url)];
+  for (const l of links) {
+    if (l.check === "broken" || l.check === "redirect-to-dead") l.replacement = suggestPage(l.status.hops.at(-1)?.url ?? l.url, livePages);
+  }
+  const archived = await archivedCopies(links.filter((l) => l.check === "broken-external").map((l) => l.url));
+  for (const l of links) if (l.check === "broken-external") l.replacement = archived.get(l.url) ?? null;
   const linksMs = mark();
 
   await hooks.onStage?.("security");

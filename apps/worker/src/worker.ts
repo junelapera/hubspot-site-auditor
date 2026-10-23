@@ -173,6 +173,7 @@ async function saveResults(runId: string, r: AuditResult) {
     module: l.location.module,
     path: l.location.path,
     fix: l.fix,
+    replacement: l.replacement ?? null,
     pages: l.pages,
   })));
 

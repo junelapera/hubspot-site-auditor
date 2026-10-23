@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { exportFilename, imagesCsv, issuesCsv, mixedContentCsv } from "../exports";
-import type { ImageRow, IssueRow, ModuleSummaryRow } from "../types";
+import { exportFilename, imagesCsv, issuesCsv, linksCsv, mixedContentCsv, redirectsCsv } from "../exports";
+import type { ImageRow, IssueRow, LinkRow, ModuleSummaryRow } from "../types";
 
 const fix = { summary: "Raise contrast.", steps: ["Darken the text."], snippet: { lang: "css" as const, code: ".hero a { color: #000; }" } };
 const issue = (over: Partial<IssueRow>): IssueRow => ({
@@ -75,3 +75,33 @@ test("mixed content: one row per resource with module and pages", () => {
 
 test("filename is safe and dated", () =>
   assert.equal(exportFilename("www.saltedstone.com", "2026-10-22T07:20:28Z", "issues"), "www.saltedstone.com-2026-10-22-issues.csv"));
+
+
+const linkRow = (over: Partial<LinkRow>): LinkRow => ({
+  id: 1, check: "broken", url: "https://x.com/old", href: "/old", text: "Old", hops: [{ url: "https://x.com/old", status: 404 }],
+  final_status: 404, error: null, scope: "module", module: ".nav", fix, pages: ["https://x.com/a"], ...over,
+});
+
+test("redirects: HubSpot sample columns, no BOM, dead → replacement and chain → final, one row per old URL", () => {
+  const csv = redirectsCsv([
+    linkRow({ replacement: { url: "https://x.com/new", reason: "Same page name at a different path" } }),
+    linkRow({ id: 2, module: ".footer", replacement: { url: "https://x.com/new", reason: "Same page name at a different path" } }),
+    linkRow({ id: 3, check: "broken", url: "https://x.com/nothing-close", replacement: null }),
+    linkRow({ id: 4, check: "redirect-chain", url: "https://x.com/a", hops: [{ url: "https://x.com/a", status: 301 }, { url: "https://x.com/b", status: 301 }, { url: "https://x.com/c", status: 200 }] }),
+    linkRow({ id: 5, check: "broken-external", url: "https://other.org/gone", replacement: { url: "https://web.archive.org/web/2024/https://other.org/gone", reason: "Archived copy" } }),
+    linkRow({ id: 6, url: `https://x.com/${"a".repeat(150)}`, replacement: { url: "https://x.com/new", reason: "Similar" } }),
+  ]);
+  assert.ok(!csv.startsWith("﻿"));
+  const lines = csv.trim().split("\r\n");
+  assert.equal(lines[0], "original url,redirect to,redirect type,redirect style,priority,match query strings,ignore trailing slash,ignore protocol,disable if page exists,note");
+  assert.deepEqual(lines.slice(1), [
+    "/old,/new,STANDARD,301,,FALSE,TRUE,TRUE,TRUE,Broken link found by site audit",
+    "/a,/c,STANDARD,301,,FALSE,TRUE,TRUE,TRUE,Redirect chain shortened by site audit",
+  ]);
+});
+
+test("links CSV: likely replacement and why", () => {
+  const lines = parse(linksCsv([linkRow({ replacement: { url: "https://x.com/new", reason: "Similar page name (2 of 3 words match)" } })]));
+  assert.match(lines[0], /,Likely replacement,Why,/);
+  assert.match(lines[1], /,https:\/\/x\.com\/new,Similar page name \(2 of 3 words match\),/);
+});

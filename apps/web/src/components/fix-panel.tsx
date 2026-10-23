@@ -7,7 +7,7 @@ export function FixPanel({ fix, title = "Suggested fix" }: { fix: Fix; title?: s
   const copyText = [fix.summary, ...fix.steps.map((s) => `- ${s}`), fix.snippet ? `\n${fix.snippet.code}` : ""].join("\n").trim();
 
   return (
-    <section className="rounded-xl border border-ink bg-teal/30 p-4 text-sm">
+    <section className="min-w-0 rounded-xl border border-ink bg-teal/30 p-4 text-sm [overflow-wrap:anywhere]">
       <div className="flex items-start justify-between gap-3">
         <h4 className="eyebrow">{title}</h4>
         <CopyButton text={copyText} />

@@ -1,6 +1,7 @@
 import pLimit from "p-limit";
 import { isRateLimited, politeFetch, sleep } from "../http.js";
 import type { Location, PageResult } from "../types.js";
+import { suggestAnchor, type Replacement } from "./replacements.js";
 
 export type LinkCheck =
   | "broken"
@@ -44,6 +45,8 @@ export interface LinkIssue {
   location: Location;
   text: string;
   pages: string[];
+  /** Likely right target: a live page with a similar slug, the closest existing ID, or an archived copy. */
+  replacement?: Replacement | null;
 }
 
 /**
@@ -313,6 +316,7 @@ export function auditAnchors(pages: PageResult[], siteHost: string): LinkIssue[]
       if (!targets || targets.has(fragment)) continue;
 
       const url = parsed.href;
+      const closest = suggestAnchor(fragment, [...targets]);
       const k = [url, link.location.scope, link.location.module, link.location.path].join("|");
       const existing = issues.get(k);
       if (existing) {
@@ -327,6 +331,7 @@ export function auditAnchors(pages: PageResult[], siteHost: string): LinkIssue[]
         location: link.location,
         text: link.text,
         pages: [page.url],
+        replacement: closest ? { url: `${url.split("#")[0]}#${closest}`, reason: "Closest ID on the page" } : null,
       });
     }
   }

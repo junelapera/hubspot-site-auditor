@@ -66,7 +66,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 - [x] Skip list for external sites that block bots
 - [x] Broken anchor: `#section` points to an ID not on the page *
 - [ ] Upload an old sitemap (e.g. WordPress); flag old URLs that return 404
-- [ ] Suggest a new URL by slug match
+- [ ] Suggest a new URL by slug match (matcher built: `suggestPage` in `apps/worker/src/checks/replacements.ts`; needs the old-sitemap upload)
 - [ ] CSV of missing redirects in HubSpot's bulk redirect import format
 
 ### 5. Security check (remaining checks)
@@ -79,7 +79,7 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 ### 6. Fix suggestions (new templates)
 
 - [x] Forms: the form editor setting to change, or a theme CSS/JS snippet
-- [ ] Links: likely replacement URL, or a ready-made redirect row
+- [x] Links: likely replacement URL, or a ready-made redirect row (slug match against live pages, closest anchor ID, Wayback copy for external links; redirects CSV in HubSpot's import format)
 - [x] Alt text: why the current alt fails, plus an example of good alt for that kind of image
 
 ### 7. Scan options

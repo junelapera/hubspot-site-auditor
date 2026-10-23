@@ -351,25 +351,57 @@ export function suggestAltFix(img: FlaggedImage): FixSuggestion[] {
 
 // ---------- links ----------
 
+/** HubSpot's bulk redirect import columns, in the order of its sample file. */
+export const REDIRECT_CSV_HEADER =
+  "original url,redirect to,redirect type,redirect style,priority,match query strings,ignore trailing slash,ignore protocol,disable if page exists,note";
+
+/** One row for HubSpot's bulk redirect import: a permanent (301) redirect that steps aside if a live page appears at the old URL. */
+export function redirectRow(from: string, to: string, note: string): string {
+  return [from, to, "STANDARD", "301", "", "FALSE", "TRUE", "TRUE", "TRUE", note].map(csvCell).join(",");
+}
+
+function csvCell(v: string): string {
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+}
+
+function redirectSnippet(from: string, to: string, note: string): Snippet {
+  return { lang: "text", code: `${REDIRECT_CSV_HEADER}\n${redirectRow(from, to, note)}` };
+}
+
 export function suggestLinkFix(issue: LinkIssue): FixSuggestion {
   const final = issue.status.hops.at(-1)?.url ?? issue.url;
+  const r = issue.replacement;
+  const likely = r ? `Likely replacement: ${r.url} (${r.reason.charAt(0).toLowerCase()}${r.reason.slice(1)}).` : null;
   const fixes: Record<LinkCheck, FixSuggestion> = {
     broken: {
       summary: `Link returns ${issue.status.finalStatus ?? issue.status.error}.`,
-      steps: ["Update the link to a live page, or add a redirect for the old URL in HubSpot URL redirects."],
-      snippet: { lang: "text", code: `Original URL,Redirect to\n${path(issue.url)},/` },
+      steps: r
+        ? [
+            likely!,
+            `Update the link to ${path(r.url)}, and add a redirect from ${path(issue.url)} so other links and search results to the old URL land there too (import the row below in HubSpot URL redirects).`,
+            REVIEW_NOTE,
+          ]
+        : ["Update the link to a live page, or add a redirect for the old URL in HubSpot URL redirects.", "No live page with a similar address was found; pick the closest page by hand."],
+      snippet: r ? redirectSnippet(path(issue.url), path(r.url), "Broken link found by site audit") : undefined,
     },
     "redirect-chain": {
       summary: `Link takes ${issue.status.hops.length - 1} redirect hops before landing.`,
       steps: [
         `Update the link to point straight at ${final}.`,
-        "Also update the earlier redirects in HubSpot so each one points directly to the final URL.",
+        "Also update the earlier redirects in HubSpot so each one points directly to the final URL (import the row below with \"Overwrite existing redirects\" ticked).",
       ],
-      snippet: { lang: "text", code: `Original URL,Redirect to\n${path(issue.url)},${path(final)}` },
+      snippet: redirectSnippet(path(issue.url), path(final), "Redirect chain shortened by site audit"),
     },
     "redirect-to-dead": {
       summary: `Link redirects to ${final}, which returns ${issue.status.finalStatus ?? issue.status.error}.`,
-      steps: ["Point the HubSpot redirect at a live page, and update the link itself."],
+      steps: r
+        ? [
+            likely!,
+            `Point the HubSpot redirect for ${path(issue.url)} at ${path(r.url)} (import the row below with "Overwrite existing redirects" ticked), and update the link itself.`,
+            REVIEW_NOTE,
+          ]
+        : ["Point the HubSpot redirect at a live page, and update the link itself.", "No live page with a similar address was found; pick the closest page by hand."],
+      snippet: r ? redirectSnippet(path(issue.url), path(r.url), "Redirect to a dead page fixed by site audit") : undefined,
     },
     "http-internal": {
       summary: "Internal link uses http://, adding a redirect hop and a mixed-content risk.",
@@ -385,15 +417,19 @@ export function suggestLinkFix(issue: LinkIssue): FixSuggestion {
         : `External link's site can't be reached (${issue.status.error}).`,
       steps: [
         "Open the link in a browser to confirm it's gone, then update it to the page's new address or remove it.",
-        "If it points to a resource that moved, search the other site for it; the Wayback Machine (web.archive.org) can help find what it used to be.",
+        r
+          ? `${r.reason}: ${r.url}. Use it to see what the page was and search the other site for its new address; link to the archived copy only if there's no live one.`
+          : "If it points to a resource that moved, search the other site for it; the Wayback Machine (web.archive.org) has no copy of this URL.",
         REVIEW_NOTE,
       ],
     },
     "broken-anchor": {
       summary: `Link jumps to #${issue.url.split("#")[1]}, but no element on ${path(issue.url.split("#")[0]) || "the page"} has that ID.`,
       steps: [
-        "Change the link to an ID that exists on the target page, or add the ID to the section it should jump to (in the module's ID / anchor field, or the rich text editor's anchor tool).",
-        "IDs are case-sensitive; check the spelling matches exactly.",
+        r
+          ? `The page has an ID #${r.url.split("#")[1]}, probably the one meant. Change the link's anchor to #${r.url.split("#")[1]} (IDs are case-sensitive).`
+          : "Change the link to an ID that exists on the target page, or add the ID to the section it should jump to (in the module's ID / anchor field, or the rich text editor's anchor tool).",
+        ...(r ? [] : ["IDs are case-sensitive; check the spelling matches exactly."]),
         REVIEW_NOTE,
       ],
     },

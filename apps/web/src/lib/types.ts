@@ -142,6 +142,8 @@ export interface LinkRow {
   scope: Scope;
   module: string | null;
   fix: Fix;
+  /** Likely right target (similar live page, closest ID, archived copy). Missing on older scans. */
+  replacement?: { url: string; reason: string } | null;
   pages: string[];
 }
 

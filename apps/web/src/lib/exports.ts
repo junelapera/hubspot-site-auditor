@@ -4,7 +4,7 @@ import { ALT_CHECK_LABEL, FORM_CHECK_IMPACT, FORM_CHECK_LABEL, LINK_CHECK_LABEL,
 import { summarizeRules, WCAG_SC } from "./rules";
 import type { Fix, FormRow, Impact, ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ModuleSummaryRow, Scope, ScriptDomainRow, SecurityRow } from "./types";
 
-export const EXPORT_KINDS = ["issues", "rules", "images", "links", "security", "mixed-content", "scripts", "libraries", "forms"] as const;
+export const EXPORT_KINDS = ["issues", "rules", "images", "links", "redirects", "security", "mixed-content", "scripts", "libraries", "forms"] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];
 
 const MAX_PAGES_LISTED = 50;
@@ -116,7 +116,7 @@ export function imagesCsv(images: ImageRow[]): string {
 
 export function linksCsv(links: LinkRow[]): string {
   return toCsv(
-    ["Problem", "URL", "Redirect hops", "Final status", "Link text", "Module", "Pages affected", "Suggested fix", "Redirect row (from,to)", "Found on"],
+    ["Problem", "URL", "Redirect hops", "Final status", "Link text", "Module", "Pages affected", "Likely replacement", "Why", "Suggested fix", "Redirect row (HubSpot import)", "Found on"],
     links.map((l): Cell[] => [
       LINK_CHECK_LABEL[l.check] ?? l.check,
       l.url,
@@ -125,10 +125,56 @@ export function linksCsv(links: LinkRow[]): string {
       l.text,
       moduleLabel(l.scope, l.module),
       l.pages.length,
+      l.replacement?.url ?? "",
+      l.replacement?.reason ?? "",
       fixText(l.fix),
       l.fix.snippet?.lang === "text" ? l.fix.snippet.code.split("\n").slice(1).join("\n") : "",
       pageList(l.pages),
     ]),
+  );
+}
+
+// HubSpot's bulk redirect import: the columns of its sample file, at most 500 rows and 140-character URLs
+// (one bad row fails the whole import). Mirrors redirectRow in apps/worker/src/fixes.ts.
+const REDIRECT_HEADER = ["original url", "redirect to", "redirect type", "redirect style", "priority", "match query strings", "ignore trailing slash", "ignore protocol", "disable if page exists", "note"];
+export const MAX_REDIRECT_ROWS = 500;
+const MAX_REDIRECT_URL = 140;
+
+function pathAndQuery(u: string): string {
+  const url = new URL(u);
+  return url.pathname + url.search;
+}
+
+/** Redirects worth adding for this scan's internal links: dead URL → likely replacement, chain start → final URL. */
+export function redirectRows(links: LinkRow[]): { from: string; to: string; note: string }[] {
+  const rows = new Map<string, { from: string; to: string; note: string }>();
+  for (const l of links) {
+    let to: string | undefined;
+    let note = "";
+    if ((l.check === "broken" || l.check === "redirect-to-dead") && l.replacement) {
+      to = l.replacement.url;
+      note = l.check === "broken" ? "Broken link found by site audit" : "Redirect to a dead page fixed by site audit";
+    } else if (l.check === "redirect-chain" && l.hops.length > 2) {
+      to = l.hops.at(-1)!.url;
+      note = "Redirect chain shortened by site audit";
+    }
+    if (!to) continue;
+    const from = pathAndQuery(l.url);
+    // Same old URL linked from several modules: one row. A chain fix and a dead-page fix for one URL can't both be right; the dead-page one wins.
+    if (!rows.has(from) || l.check !== "redirect-chain") rows.set(from, { from, to: pathAndQuery(to), note });
+  }
+  return [...rows.values()];
+}
+
+/** Ready for HubSpot > Domains & URLs > URL redirects > Import. Rows HubSpot would reject (URL over 140 characters) are left out. */
+export function redirectsCsv(links: LinkRow[]): string {
+  const rows = redirectRows(links)
+    .filter((r) => r.from.length <= MAX_REDIRECT_URL && r.to.length <= MAX_REDIRECT_URL)
+    .slice(0, MAX_REDIRECT_ROWS);
+  return toCsv(
+    REDIRECT_HEADER,
+    rows.map((r): Cell[] => [r.from, r.to, "STANDARD", "301", "", "FALSE", "TRUE", "TRUE", "TRUE", r.note]),
+    { bom: false },
   );
 }
 

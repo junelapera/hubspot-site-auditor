@@ -11,8 +11,8 @@ export function csvCell(value: Cell): string {
   return /[",\n\r]/.test(s) || s !== s.trim() ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-/** RFC 4180 CSV with CRLF line endings and a UTF-8 BOM so Excel reads accents correctly. */
-export function toCsv(header: string[], rows: Cell[][]): string {
+/** RFC 4180 CSV with CRLF line endings and (unless bom is false) a UTF-8 BOM so Excel reads accents correctly. */
+export function toCsv(header: string[], rows: Cell[][], { bom = true } = {}): string {
   const lines = [header, ...rows].map((row) => row.map(csvCell).join(","));
-  return "﻿" + lines.join("\r\n") + "\r\n";
+  return (bom ? "﻿" : "") + lines.join("\r\n") + "\r\n";
 }

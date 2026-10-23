@@ -81,6 +81,32 @@ async function insertRun(siteId: string, options: RunOptions = {}): Promise<Form
   return {};
 }
 
+/** Delete a site with all its scans and marks. Typing the domain confirms it; refused while a scan is queued or running. */
+export async function deleteSite(siteId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { supabase } = await requireUser();
+  const { data: site } = await supabase.from("sites").select("domain").eq("id", siteId).maybeSingle<{ domain: string }>();
+  if (!site) return { error: "Site not found." };
+  if (String(formData.get("confirm") ?? "").trim().toLowerCase() !== site.domain) {
+    return { error: `Type ${site.domain} exactly to confirm.` };
+  }
+
+  const busy = "A scan is queued or running for this site. Wait for it to finish, then delete the site.";
+  const { count } = await supabase
+    .from("runs")
+    .select("id", { count: "exact", head: true })
+    .eq("site_id", siteId)
+    .in("status", ["queued", "running"]);
+  if (count) return { error: busy };
+
+  // RLS refuses the delete (0 rows) if a scan was queued in the meantime.
+  const { data, error } = await supabase.from("sites").delete().eq("id", siteId).select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: busy };
+
+  revalidatePath("/");
+  redirect("/");
+}
+
 export async function queueRun(siteId: string): Promise<FormState> {
   return insertRun(siteId);
 }
