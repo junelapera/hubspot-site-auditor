@@ -1,4 +1,4 @@
-import type { Impact, Scope } from "./types";
+import type { Impact, Scope, Viewport } from "./types";
 
 // Mirrors moduleLabel in apps/worker/src/aggregate.ts.
 export function moduleLabel(scope: Scope, module: string | null): string {
@@ -93,3 +93,9 @@ export const FORM_CHECK_IMPACT: Record<string, "critical" | "serious" | "moderat
   "low-contrast": "serious",
   "errors-not-shown": "moderate",
 };
+
+/** "Mobile only" / "Desktop only" when a scan checked both widths but the issue was only found at one. */
+export function widthOnly(found: Viewport[], checked: Viewport[]): string | null {
+  if (checked.length < 2 || found.length !== 1) return null;
+  return found[0] === "mobile" ? "Mobile only" : "Desktop only";
+}

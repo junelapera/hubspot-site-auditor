@@ -60,6 +60,7 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
     { label: "New", value: c.new.length, tone: "bg-pink" },
     { label: "Still open", value: c.open.length, tone: "bg-paper" },
     { label: "Not rechecked", value: c.notRechecked.length, tone: "bg-tan" },
+    ...(c.newlyChecked.length ? [{ label: "First at mobile width", value: c.newlyChecked.length, tone: "bg-teal" }] : []),
     { label: "Marked", value: c.hidden.length, tone: "bg-yellow" },
   ];
 
@@ -97,7 +98,7 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
         </p>
       )}
 
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <dl className={`grid grid-cols-2 gap-3 ${tiles.length > 5 ? "sm:grid-cols-3 lg:grid-cols-6" : "sm:grid-cols-5"}`}>
         {tiles.map((t) => (
           <div key={t.label} className={`rounded-xl border border-ink p-4 ${t.tone}`}>
             <dt className="font-mono text-[10px] font-bold tracking-[0.08em] uppercase">{t.label}</dt>
@@ -108,6 +109,13 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
 
       <IssueList title="New" description="In the newer scan, not in the older one." issues={c.new} open />
       <IssueList title="Fixed" description="In the older scan, gone from the same pages in the newer one." issues={c.fixed} open />
+      {c.newlyChecked.length > 0 && (
+        <IssueList
+          title="First at mobile width"
+          description="Only found at mobile width, which the older scan didn't check. Not counted as new."
+          issues={c.newlyChecked}
+        />
+      )}
       <IssueList title="Still open" description="In both scans." issues={c.open} />
       <IssueList title="Not rechecked" description="In the older scan, but none of its pages were scanned in the newer one." issues={c.notRechecked} />
       <IssueList title="Marked" description="Won't fix or false positive; left out of the counts above." issues={c.hidden} />

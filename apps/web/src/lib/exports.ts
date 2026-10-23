@@ -59,6 +59,7 @@ export function issuesCsv(issues: IssueRow[], modules: ModuleSummaryRow[]): stri
       "Rule",
       "Elements",
       "Pages affected",
+      "Found at",
       "Description",
       "Suggested fix",
       "Code snippet",
@@ -77,6 +78,7 @@ export function issuesCsv(issues: IssueRow[], modules: ModuleSummaryRow[]): stri
         worst.rule_id,
         group.length,
         pages.length,
+        foundAt(group),
         `${worst.help}. ${group.length} failing ${group.length === 1 ? "element" : "elements"} across ${pages.length} ${pages.length === 1 ? "page" : "pages"}.`,
         fixText(worst.fix),
         worst.fix.snippet?.code ?? "",
@@ -86,6 +88,11 @@ export function issuesCsv(issues: IssueRow[], modules: ModuleSummaryRow[]): stri
       ];
     }),
   );
+}
+
+/** "desktop, mobile": the widths any issue in the group was found at. */
+function foundAt(group: IssueRow[]): string {
+  return (["desktop", "mobile"] as const).filter((v) => group.some((i) => i.viewports.includes(v))).join(", ");
 }
 
 export function imagesCsv(images: ImageRow[]): string {

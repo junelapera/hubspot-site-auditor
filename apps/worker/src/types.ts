@@ -1,5 +1,7 @@
 export type Scope = "module" | "global" | "template" | "content" | "embed" | "unknown";
 export type Impact = "critical" | "serious" | "moderate" | "minor";
+/** The window width axe ran at (see DESKTOP / MOBILE in scan.ts). */
+export type Viewport = "desktop" | "mobile";
 
 /** Where an element sits on a HubSpot page. Produced by browser/inspect.js. */
 export interface Location {
@@ -112,6 +114,7 @@ export interface AxeFinding {
   failureSummary: string;
   target: string;
   location: Location;
+  viewport: Viewport;
 }
 
 export interface PageResult {
@@ -120,6 +123,9 @@ export interface PageResult {
   /** True when the URL redirected before landing; its final status hides the redirect. */
   redirected: boolean;
   error?: string;
+  /** Why the mobile-width pass failed, when the desktop one worked. Its findings are then desktop only. */
+  mobileError?: string;
+  /** Both viewports' axe findings. */
   findings: AxeFinding[];
   images: ImageInfo[];
   links: LinkInfo[];
@@ -149,6 +155,8 @@ export interface Issue {
   html: string;
   failureSummary: string;
   pages: string[];
+  /** Widths it was found at. Not part of the fingerprint, so issues still match scans from before the mobile pass. */
+  viewports: Viewport[];
 }
 
 export interface ModuleSummary {

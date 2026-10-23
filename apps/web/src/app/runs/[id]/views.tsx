@@ -3,12 +3,12 @@ import { Badge } from "@/components/badge";
 import { DisclosureChevron, NextChevron } from "@/components/chevron";
 import { FixPanel } from "@/components/fix-panel";
 import { MarkControl } from "@/components/mark-control";
-import { ALT_CHECK_LABEL, FORM_CHECK_IMPACT, FORM_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT } from "@/lib/format";
+import { ALT_CHECK_LABEL, FORM_CHECK_IMPACT, FORM_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel, pathOf, SCOPE_HINT, widthOnly } from "@/lib/format";
 import { previousRun } from "@/lib/compare-data";
 import { createClient } from "@/lib/supabase/server";
 import { summarizeRules, WCAG_SC } from "@/lib/rules";
 import { moduleKey, summarizeModules } from "@/lib/summary";
-import type { FormRow, Impact, ImageRow, IssueMark, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, PageRow, Run, ScriptDomainRow, SecurityRow } from "@/lib/types";
+import type { FormRow, Impact, ImageRow, IssueMark, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, PageRow, Run, ScriptDomainRow, SecurityRow, Viewport } from "@/lib/types";
 
 const IMPACT_ORDER: Record<Impact, number> = { critical: 0, serious: 1, moderate: 2, minor: 3 };
 
@@ -38,6 +38,8 @@ export interface ViewProps {
   siteId: string;
   /** Include issues marked won't fix / false positive. */
   showHidden: boolean;
+  /** Widths this scan ran at. */
+  viewports: Viewport[];
 }
 
 async function issuesWithMarks(runId: string, siteId: string) {
@@ -50,7 +52,7 @@ async function issuesWithMarks(runId: string, siteId: string) {
   return { issues: issues ?? [], markByFp };
 }
 
-export async function ModulesView({ runId, siteId, showHidden }: ViewProps) {
+export async function ModulesView({ runId, siteId, showHidden, viewports }: ViewProps) {
   const { issues, markByFp } = await issuesWithMarks(runId, siteId);
   if (!issues.length) return <Empty>No accessibility issues found on the scanned pages.</Empty>;
 
@@ -96,7 +98,7 @@ export async function ModulesView({ runId, siteId, showHidden }: ViewProps) {
             </summary>
             <div className="space-y-4 border-t border-ink/30 p-4">
               {group.map((issue) => (
-                <IssueDetail key={issue.id} issue={issue} siteId={siteId} mark={markByFp.get(issue.fingerprint)} />
+                <IssueDetail key={issue.id} issue={issue} siteId={siteId} mark={markByFp.get(issue.fingerprint)} checked={viewports} />
               ))}
             </div>
           </details>
@@ -106,7 +108,8 @@ export async function ModulesView({ runId, siteId, showHidden }: ViewProps) {
   );
 }
 
-function IssueDetail({ issue, siteId, mark }: { issue: IssueRow; siteId: string; mark?: IssueMark }) {
+function IssueDetail({ issue, siteId, mark, checked }: { issue: IssueRow; siteId: string; mark?: IssueMark; checked: Viewport[] }) {
+  const only = widthOnly(issue.viewports, checked);
   return (
     <article className="space-y-3 rounded-lg border border-ink/30 bg-paper p-3">
       <header className="flex flex-wrap items-center gap-2">
@@ -115,6 +118,7 @@ function IssueDetail({ issue, siteId, mark }: { issue: IssueRow; siteId: string;
         <a href={issue.help_url} target="_blank" rel="noreferrer" className="font-mono text-xs text-ink/70 underline">
           {issue.rule_id}
         </a>
+        {only && <span className="chip bg-paper">{only}</span>}
       </header>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <div className="space-y-2">
@@ -205,7 +209,7 @@ export async function RulesView({ runId, siteId, showHidden }: ViewProps) {
 
 // ---------- Pages ----------
 
-export async function PagesView({ runId, siteId }: ViewProps) {
+export async function PagesView({ runId, siteId, viewports }: ViewProps) {
   const supabase = await createClient();
   const [{ data: pages }, { issues: allIssues, markByFp }] = await Promise.all([
     supabase.from("pages").select("*").eq("run_id", runId).order("url").returns<PageRow[]>(),
@@ -236,6 +240,11 @@ export async function PagesView({ runId, siteId }: ViewProps) {
               {issues[0] && <Badge tone={issues[0].impact}>{issues[0].impact}</Badge>}
             </span>
           </summary>
+          {page.mobile_error && (
+            <p className="border-t border-ink/30 px-4 py-2 text-xs text-ink/75">
+              Mobile-width check failed ({page.mobile_error}), so this page&apos;s issues are from desktop width only.
+            </p>
+          )}
           {issues.length > 0 && (
             <ul className="divide-y divide-ink/15 border-t border-ink/30 text-sm">
               {issues.map((i) => (
@@ -243,6 +252,7 @@ export async function PagesView({ runId, siteId }: ViewProps) {
                   <Badge tone={i.impact}>{i.impact}</Badge>
                   <span className="text-ink">{i.help}</span>
                   <span className="font-mono text-xs text-ink/70">in {moduleLabel(i.scope, i.module)}</span>
+                  {widthOnly(i.viewports, viewports) && <span className="chip bg-paper">{widthOnly(i.viewports, viewports)}</span>}
                 </li>
               ))}
             </ul>

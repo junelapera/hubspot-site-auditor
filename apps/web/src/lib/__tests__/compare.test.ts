@@ -4,7 +4,7 @@ import { compareRuns, type CompareIssue } from "../compare";
 import type { IssueMark } from "../types";
 
 const issue = (fingerprint: string, pages: string[], over: Partial<CompareIssue> = {}): CompareIssue => ({
-  fingerprint, pages, rule_id: "color-contrast", help: "Contrast", impact: "serious", scope: "module", module: ".hero", ...over,
+  fingerprint, pages, rule_id: "color-contrast", help: "Contrast", impact: "serious", scope: "module", module: ".hero", viewports: ["desktop"], ...over,
 });
 const fps = (list: { fingerprint: string }[]) => list.map((i) => i.fingerprint).sort();
 
@@ -43,4 +43,26 @@ test("marked issues are hidden from every bucket and keep their status", () => {
 test("worst severity first", () => {
   const c = compareRuns([], [issue("m", ["/1"], { impact: "minor" }), issue("c", ["/1"], { impact: "critical" })], ["/1"]);
   assert.deepEqual(c.new.map((i) => i.impact), ["critical", "minor"]);
+});
+
+const BOTH = ["desktop", "mobile"] as const;
+
+test("first scan with the mobile pass: mobile-only issues aren't new", () => {
+  const c = compareRuns([issue("a", ["/1"])], [issue("a", ["/1"], { viewports: [...BOTH] }), issue("m", ["/1"], { viewports: ["mobile"] }), issue("d", ["/1"])], ["/1"], [], {
+    base: ["desktop"],
+    head: [...BOTH],
+  });
+  assert.deepEqual(fps(c.open), ["a"]);
+  assert.deepEqual(fps(c.newlyChecked), ["m"]);
+  assert.deepEqual(fps(c.new), ["d"]);
+});
+
+test("both scans at both widths: a mobile-only issue is new as usual", () => {
+  const c = compareRuns([], [issue("m", ["/1"], { viewports: ["mobile"] })], ["/1"], [], { base: [...BOTH], head: [...BOTH] });
+  assert.deepEqual(fps(c.new), ["m"]);
+});
+
+test("mobile-only issue isn't fixed by a desktop-only rescan", () => {
+  const c = compareRuns([issue("m", ["/1"], { viewports: ["mobile"] })], [], ["/1"], [], { base: [...BOTH], head: ["desktop"] });
+  assert.deepEqual([c.fixed.length, c.notRechecked.length], [0, 1]);
 });

@@ -1,4 +1,4 @@
-// Local scan without Supabase: pnpm scan <domain> [--limit 20] [--include "/a/**"] [--exclude "/blog/page/**"] [--urls u1,u2] [--extra-urls u1,u2] [--sample]
+// Local scan without Supabase: pnpm scan <domain> [--limit 20] [--include "/a/**"] [--exclude "/blog/page/**"] [--urls u1,u2] [--extra-urls u1,u2] [--sample] [--desktop-only]
 import { mkdirSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { moduleLabel } from "./aggregate.js";
@@ -13,6 +13,7 @@ const { values, positionals } = parseArgs({
     urls: { type: "string" },
     "extra-urls": { type: "string" },
     sample: { type: "boolean", default: false },
+    "desktop-only": { type: "boolean", default: false },
     concurrency: { type: "string", default: "3" },
   },
 });
@@ -29,6 +30,7 @@ const result = await runAudit(
     urls: values.urls?.split(",").map((u) => u.trim()),
     extraUrls: values["extra-urls"]?.split(",").map((u) => u.trim()),
     sample: values.sample,
+    mobile: !values["desktop-only"],
     include: values.include,
     exclude: values.exclude,
     limit: Number(values.limit),
@@ -44,6 +46,8 @@ const result = await runAudit(
 
 const { stats, modules, issues, images, links, security, mixedContent, scripts, libraries, forms } = result;
 console.log(`\n${stats.rawFindings} page-level findings → ${issues.length} unique issues in ${modules.length} groups`);
+const at = (v: string) => issues.filter((i) => i.viewports.length === 1 && i.viewports[0] === v).length;
+console.log(`Widths: ${stats.viewports.join(" + ")}${stats.viewports.length > 1 ? ` · desktop only ${at("desktop")}, mobile only ${at("mobile")}` : ""}${stats.mobileFailed ? ` · mobile pass failed on ${stats.mobileFailed} pages` : ""}`);
 const secs = (ms: number) => `${(ms / 1000).toFixed(0)}s`;
 if (stats.sample) {
   const s = stats.sample;

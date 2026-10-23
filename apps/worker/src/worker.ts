@@ -123,6 +123,7 @@ async function saveResults(runId: string, r: AuditResult) {
     status: p.status,
     redirected: p.redirected,
     error: p.error ?? null,
+    mobile_error: p.mobileError ?? null,
     finding_count: p.findings.length,
   })));
 
@@ -143,6 +144,7 @@ async function saveResults(runId: string, r: AuditResult) {
     failure_summary: i.failureSummary,
     fix: i.fix,
     pages: i.pages,
+    viewports: i.viewports,
   })));
 
   await insert("images", r.images.map((i) => ({

@@ -1,6 +1,6 @@
 # Status
 
-Last updated: Oct 22, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 in progress (comparison, scores, all security checks, external links, anchors, WCAG view, form check, URL lists, sampling done)**
+Last updated: Oct 23, 2026 · Current phase: **Phase 1 acceptance runs pending; Phase 2 in progress (comparison, scores, all security checks, external links, anchors, WCAG view, form check, URL lists, sampling, mobile-width scan done)**
 
 The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This file is the short version: what works, what's next, and what's blocking.
 
@@ -24,9 +24,10 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 | Scan specific pages (Phase 2) | "Scan specific pages" on the site page: paste URLs or paths (one per line, up to 200, site's own domain only), and scan only those or the sitemap plus those. The list is kept if it's rejected. Scans show a "N listed pages" / "Sitemap + N listed" chip. URL-list scans still read the sitemap (without scanning it) so the link check skips known-live pages: the same 3 pages went from 66s to 13s. CLI: `--urls` and `--extra-urls`. |
 | Sampled scan (Phase 2) | "Sampled scan" button next to "Run scan": reads every sitemap page's HTML (plain GET, 4 at a time, up to 2,000 pages), names its modules the way the browser scanner does, then scans the fewest pages that cover every module, global partial and template wrapper (greedy, up to the page limit). Progress shows pages read; the report and scan list say how many modules the sample covers. On saltedstone.com, 2 of 212 case-study pages cover all 28 modules in that section; 10 of all 584 pages cover 146 of 191 modules. Reading runs at ~2.7 pages/s (584 pages in 217s, no rate limiting). CLI: `--sample`. |
 | Alt-text fixes (Phase 2) | Each flagged image's fix quotes the current alt and says why it fails, gives an example of good alt for its kind of image (logo, icon, chart, person, screenshot or photo, guessed from file name, alt, module and size), names the link destination for linked images, and says where to edit it (module field, rich text editor, global module or template). New scans only. |
+| Mobile-width scan (Phase 2) | Every scan runs axe a second time per page at 390px (`isMobile`, so the page's meta viewport applies), in a fresh browser context. Issues are deduped across both widths by the same fingerprint (width isn't part of it) and store `viewports`; the report shows "Mobile only" / "Desktop only" chips, the header says which widths ran, the Pages tab notes a failed mobile pass, and the issues CSV has a "Found at" column. Comparisons put issues found only at a width the older scan didn't check under "First at mobile width" instead of "new", and an issue isn't "fixed" unless the newer scan checked a width it was found at. Images, links, forms and security come from desktop only. saltedstone.com (3 pages): 5 issues, 1 desktop only and 1 mobile only (the sticky bar's `img.desktop` / `img.mobile`); compared with the previous scan, 0 new, 1 first at mobile width. CLI: `--desktop-only`. |
 | Look and feel | Salted Stone brand from saltedstone.com: cream / ink palette, logo and S² favicon, serif headings, mono uppercase labels, orange pill buttons, brand-colored severity chips, chevron icons, brand-styled dropdowns (Radix Select). Every color pair contrast-checked. |
 | Accessibility of the app itself | axe (WCAG 2.2 AA) passes on all 12 screens. No sideways scrolling down to 320px wide. |
-| Tests | 53 worker + 24 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
+| Tests | 56 worker + 28 web unit tests (`pnpm test`); both apps typecheck; web app lints and builds. |
 
 ## Results so far (saltedstone.com)
 
@@ -39,19 +40,19 @@ The full checklist is in [phases/phase-1-mvp.md](phases/phase-1-mvp.md). This fi
 
 Only one site has been scanned so far. The acceptance criteria call for 3 real client sites.
 
-## Pick up here (end of Oct 22)
+## Pick up here (Oct 23)
 
-- Production is current: https://hubspot-site-auditor.vercel.app (latest: dates in the viewer's time zone; brand dropdown on the compare page; scan comparison and won't-fix marking).
+- Production is current: https://hubspot-site-auditor.vercel.app (latest: mobile-width scan, with "Mobile only" / "Desktop only" chips and "First at mobile width" in comparisons). The `issues.viewports` / `pages.mobile_error` migration is applied.
 - Local: `pnpm dev` (web on :3000) and, optionally, `pnpm worker`. If CSS looks stale after a `pnpm build`, stop the dev server, delete `apps/web/.next`, and start it again.
 - Waiting on: 3 client domains (and SecurityScorecard reports if available) for the Phase 1 acceptance runs.
-- Ready to start without input: the rest of Phase 2 (mobile-width scan).
+- Ready to start without input: the rest of Phase 2 (link replacement fixes, old-sitemap redirect check). File Manager pass needs a HubSpot private app token.
 
 ## Next
 
 1. **Acceptance runs** on 3 client sites (ideally different themes): named-module rate (90%+), alt-text false positives (under 10%), a SecurityScorecard comparison (90%+ match), a 200-page timing (under 15 min), and a test import of the issues CSV into Teamwork. Needs: the 3 domains, and SecurityScorecard reports if available.
 2. **Custom SMTP** in Supabase Auth (optional): only needed for "Forgot password?" emails. Invites don't use email.
 3. **Confirm the form check creates no contacts:** after a scan of a site with forms, check its HubSpot CRM for new contacts. The network side is already verified.
-4. **Phase 2, next items:** mobile-width scan, File Manager pass, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
+4. **Phase 2, next items:** link replacement fixes, old-sitemap redirects, File Manager pass, and the rest of [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md).
 
 ## Known issues and decisions
 
@@ -87,6 +88,10 @@ Only one site has been scanned so far. The acceptance criteria call for 3 real c
 - **Listed pages added to the sitemap are outside the page limit and path filters**: "sitemap plus these pages" scans the limited, filtered sitemap and then every listed page.
 
 - **Sampling isn't "one page per template".** HubSpot doesn't put the template name in the page, and drag-and-drop pages on one template have different modules, so the sample is the fewest pages that cover every module instead. Issues are listed for the sampled pages only, and the accessibility score is averaged over them. The 15-minute target for 1,000+ pages is an estimate until a large site is tried.
+
+- **Mobile pass doubles the axe work.** Each page is loaded twice (desktop, then mobile, 0.5s apart, same 429 back-off). On 3 saltedstone.com pages the scan stage took 14s. Re-check the 200-page timing in the acceptance runs; `--desktop-only` / `mobile: false` turns it off.
+- **Mobile issues lower the accessibility score.** The score counts every issue on a page, so the first scan with the mobile pass can score lower than the one before it with nothing changed on the site.
+- **Mobile pass uses the scanner's own user agent**, not a phone's. HubSpot themes are responsive (CSS media queries), so width is what matters; a site that serves different HTML by user agent would show its desktop markup at phone width.
 
 ## Open questions
 

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Impact, Issue, ModuleSummary, PageResult, Scope } from "./types.js";
+import type { Impact, Issue, ModuleSummary, PageResult, Scope, Viewport } from "./types.js";
 
 export const IMPACT_RANK: Record<Impact, number> = { critical: 4, serious: 3, moderate: 2, minor: 1 };
 
@@ -34,6 +34,7 @@ export function dedupeIssues(pages: PageResult[]): Issue[] {
 
       if (existing) {
         if (!existing.pages.includes(page.url)) existing.pages.push(page.url);
+        if (!existing.viewports.includes(f.viewport)) existing.viewports.push(f.viewport);
         if (IMPACT_RANK[f.impact] > IMPACT_RANK[existing.impact]) existing.impact = f.impact;
         continue;
       }
@@ -53,10 +54,14 @@ export function dedupeIssues(pages: PageResult[]): Issue[] {
         html: f.html,
         failureSummary: f.failureSummary,
         pages: [page.url],
+        viewports: [f.viewport],
       });
     }
   }
 
+  // Same order in every scan, whichever width found it first.
+  const ORDER: Viewport[] = ["desktop", "mobile"];
+  for (const issue of byFingerprint.values()) issue.viewports.sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
   return [...byFingerprint.values()];
 }
 

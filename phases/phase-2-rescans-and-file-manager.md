@@ -84,14 +84,14 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 ### 7. Scan options
 
-- [ ] Mobile-width scan alongside desktop; issues tagged by viewport, deduped across both
+- [x] Mobile-width scan alongside desktop; issues tagged by viewport, deduped across both (390px, every scan; width isn't in the fingerprint)
 - [x] Sampling mode: one page per template for a fast first pass on large sites (built as "fewest pages that cover every module": drag-and-drop pages share a template but not modules)
 - [x] Paste a URL list instead of the sitemap, or add URLs the sitemap misses *
 
 ### 8. Views
 
 - [x] **Rule view**: issues grouped by WCAG rule, for conformance summaries *
-- [ ] Comparison view for two runs
+- [x] Comparison view for two runs (`/runs/:id/compare`)
 
 \* Not assigned to a phase in the PRD. Placed here because it depends on something built in this phase.
 

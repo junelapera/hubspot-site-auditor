@@ -1,19 +1,21 @@
 import { readFileSync } from "node:fs";
 import AxeBuilder from "@axe-core/playwright";
 import pLimit from "p-limit";
-import { chromium, type Browser } from "playwright";
+import { chromium } from "playwright";
 import { isRateLimited, retryDelay, sleep, USER_AGENT } from "./http.js";
 import { testForm } from "./checks/forms.js";
 import type { LibraryDetector } from "./checks/libraries.js";
 import { isFirstParty, parseMixedContentMessage, parseSetCookie } from "./checks/page-security.js";
-import type { AxeFinding, CookieInfo, DetectedLibrary, Impact, ImageInfo, InsecureResource, LinkInfo, Location, PageForm, PageResult } from "./types.js";
+import type { Browser, Page, Response } from "playwright";
+import type { AxeFinding, CookieInfo, DetectedLibrary, Impact, ImageInfo, InsecureResource, LinkInfo, Location, PageForm, PageResult, Viewport } from "./types.js";
 
 const INSPECT_SRC = readFileSync(new URL("./browser/inspect.js", import.meta.url), "utf8");
 
 export const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22a", "wcag22aa"];
 
 export const DESKTOP = { width: 1366, height: 900 };
-
+/** A common phone width. isMobile makes Chrome honour the page's meta viewport, as a phone would. */
+export const MOBILE = { width: 390, height: 844 };
 
 export interface ScanOptions {
   concurrency?: number;
@@ -21,6 +23,8 @@ export interface ScanOptions {
   onPage?: (result: PageResult, done: number, total: number) => void;
   /** Retire.js matcher; without it, libraries aren't checked. */
   detector?: LibraryDetector;
+  /** Run axe again at mobile width (default true). Only axe runs there: images, links, forms and security come from desktop. */
+  mobile?: boolean;
 }
 
 /** Library matches per script URL, shared by every page in a scan so each script is checked once. */
@@ -29,7 +33,7 @@ type LibraryCache = Map<string, Promise<DetectedLibrary[]>>;
 const FORM_TIMEOUT_MS = 30_000;
 
 export async function scanPages(urls: string[], opts: ScanOptions = {}): Promise<PageResult[]> {
-  const { concurrency = 3, delayMs = 500, onPage, detector } = opts;
+  const { concurrency = 3, delayMs = 500, onPage, detector, mobile = true } = opts;
   const libraryCache: LibraryCache = new Map();
   // Each HubSpot form (by form ID) is tested on the first page it's found on.
   const formsTested = new Set<string>();
@@ -42,6 +46,12 @@ export async function scanPages(urls: string[], opts: ScanOptions = {}): Promise
       urls.map((url) =>
         limit(async () => {
           const result = await scanPage(browser, url, detector && { detector, cache: libraryCache }, formsTested);
+          if (mobile && !result.error) {
+            await sleep(delayMs);
+            const found = await scanMobile(browser, result.url);
+            if ("error" in found) result.mobileError = found.error;
+            else result.findings.push(...found.findings);
+          }
           onPage?.(result, ++done, urls.length);
           await sleep(delayMs);
           return result;
@@ -109,38 +119,9 @@ export async function scanPage(
   });
 
   try {
-    let response = await page.goto(url, { waitUntil: "load", timeout: 45_000 });
-    for (let attempt = 0; isRateLimited(response?.status() ?? null) && attempt < 3; attempt++) {
-      await sleep(retryDelay(response!.headers()["retry-after"] ?? null, attempt));
-      response = await page.goto(url, { waitUntil: "load", timeout: 45_000 });
-    }
-    // Never run axe on a rate-limit or error page: its findings would be junk.
-    const status = response?.status() ?? null;
-    if (status === null || status >= 400) {
-      const error = isRateLimited(status) ? `Rate limited (HTTP ${status})` : `HTTP ${status}`;
-      return { url, status, redirected: false, error, ...empty };
-    }
-    // Let JS-built modules and HubSpot forms render; don't fail if trackers keep the network busy.
-    await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
-
-    const axe = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
-
-    const nodes = axe.violations.flatMap((v) => v.nodes.map((node) => ({ v, node })));
-    const inspected = (await page.evaluate(
-      `(${INSPECT_SRC})(${JSON.stringify({ targets: nodes.map(({ node }) => node.target) })})`,
-    )) as { targets: Location[]; images: ImageInfo[]; links: LinkInfo[]; insecure: InsecureResource[]; anchors: string[]; forms: PageForm[] };
-
-    const findings: AxeFinding[] = nodes.map(({ v, node }, i) => ({
-      ruleId: v.id,
-      impact: (node.impact ?? v.impact ?? "minor") as Impact,
-      help: v.help,
-      helpUrl: v.helpUrl,
-      tags: v.tags,
-      html: node.html,
-      failureSummary: node.failureSummary ?? "",
-      target: node.target.map(String).join(" >>> "),
-      location: inspected.targets[i],
-    }));
+    const { response, error } = await load(page, url);
+    if (error) return { url, status: response?.status() ?? null, redirected: false, error, ...empty };
+    const { findings, inspected } = await runAxe(page, "desktop");
 
     // Forms last: the test types Tab, submits empty and blocks non-GET requests, so the page is spent after it.
     if (formsTested) {
@@ -175,6 +156,63 @@ export async function scanPage(
   } finally {
     await context.close();
   }
+}
+
+/** The page's axe findings at the other width. A fresh context, so nothing from the desktop pass (form test, blocked requests) carries over. */
+async function scanMobile(browser: Browser, url: string): Promise<{ findings: AxeFinding[] } | { error: string }> {
+  const context = await browser.newContext({ viewport: MOBILE, isMobile: true, hasTouch: true, userAgent: USER_AGENT });
+  try {
+    const page = await context.newPage();
+    const { error } = await load(page, url);
+    if (error) return { error };
+    return { findings: (await runAxe(page, "mobile")).findings };
+  } catch (err) {
+    return { error: (err as Error).message };
+  } finally {
+    await context.close();
+  }
+}
+
+/** Load a page, backing off on 429/503. error is set for anything axe shouldn't run on. */
+async function load(page: Page, url: string): Promise<{ response: Response | null; error?: string }> {
+  let response = await page.goto(url, { waitUntil: "load", timeout: 45_000 });
+  for (let attempt = 0; isRateLimited(response?.status() ?? null) && attempt < 3; attempt++) {
+    await sleep(retryDelay(response!.headers()["retry-after"] ?? null, attempt));
+    response = await page.goto(url, { waitUntil: "load", timeout: 45_000 });
+  }
+  // Never run axe on a rate-limit or error page: its findings would be junk.
+  const status = response?.status() ?? null;
+  if (status === null || status >= 400) {
+    return { response, error: isRateLimited(status) ? `Rate limited (HTTP ${status})` : `HTTP ${status}` };
+  }
+  // Let JS-built modules and HubSpot forms render; don't fail if trackers keep the network busy.
+  await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
+  return { response };
+}
+
+type Inspected = { targets: Location[]; images: ImageInfo[]; links: LinkInfo[]; insecure: InsecureResource[]; anchors: string[]; forms: PageForm[] };
+
+async function runAxe(page: Page, viewport: Viewport): Promise<{ findings: AxeFinding[]; inspected: Inspected }> {
+  const axe = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
+
+  const nodes = axe.violations.flatMap((v) => v.nodes.map((node) => ({ v, node })));
+  const inspected = (await page.evaluate(
+    `(${INSPECT_SRC})(${JSON.stringify({ targets: nodes.map(({ node }) => node.target) })})`,
+  )) as Inspected;
+
+  const findings: AxeFinding[] = nodes.map(({ v, node }, i) => ({
+    ruleId: v.id,
+    impact: (node.impact ?? v.impact ?? "minor") as Impact,
+    help: v.help,
+    helpUrl: v.helpUrl,
+    tags: v.tags,
+    html: node.html,
+    failureSummary: node.failureSummary ?? "",
+    target: node.target.map(String).join(" >>> "),
+    location: inspected.targets[i],
+    viewport,
+  }));
+  return { findings, inspected };
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {

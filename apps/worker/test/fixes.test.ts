@@ -32,7 +32,7 @@ import type { Issue } from "../src/types.js";
 const issue = (over: Partial<Issue>): Issue => ({
   fingerprint: "x", ruleId: "image-alt", impact: "critical", help: "", helpUrl: "", tags: [],
   scope: "module", module: ".hero", named: true, partial: null, path: "img", html: "<img>",
-  failureSummary: "", pages: [], ...over,
+  failureSummary: "", pages: [], viewports: ["desktop"], ...over,
 });
 
 test("image-alt in a module points at the module field", () =>

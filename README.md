@@ -132,7 +132,10 @@ pnpm scan www.example.com --include "/services/**" --exclude "/blog/page/**"
 pnpm scan www.example.com --urls https://www.example.com/,https://www.example.com/contact   # only these pages
 pnpm scan www.example.com --limit 10 --extra-urls https://www.example.com/landing           # sitemap plus these
 pnpm scan www.example.com --sample --limit 20   # read every page, scan the fewest (up to 20) that cover every module
+pnpm scan www.example.com --limit 10 --desktop-only   # skip the mobile-width axe pass
 ```
+
+Every scan runs axe twice per page, at desktop (1366px) and mobile (390px) width. An element that fails at both widths is one issue; the report marks issues found at only one width "Mobile only" or "Desktop only".
 
 In the app, **Scan specific pages** on a site does the same: paste URLs or paths, then scan only those or the sitemap plus those. **Sampled scan** is the `--sample` mode, for a fast first pass on a large site.
 
@@ -181,5 +184,5 @@ pnpm build       # web app production build
 ## Roadmap
 
 - **Phase 1 — MVP:** module-aware scan, alt text, internal links, security headers, fix suggestions, report views, CSV export. [phases/phase-1-mvp.md](phases/phase-1-mvp.md)
-- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, scores, security checks, external links, anchors, WCAG view, form check, URL lists, and sampling done): forms, File Manager, external links, old-URL redirects, mobile scan. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
+- **Phase 2 — Re-scans and File Manager** (in progress; run comparison, won't-fix marking, scores, security checks, external links, anchors, WCAG view, form check, URL lists, sampling, and mobile-width scan done): forms, File Manager, external links, old-URL redirects. [phases/phase-2-rescans-and-file-manager.md](phases/phase-2-rescans-and-file-manager.md)
 - **Phase 3 — Client-facing:** shareable reports, scheduled scans, Teamwork push, CMS API module paths, Claude API fixes. [phases/phase-3-client-facing.md](phases/phase-3-client-facing.md)

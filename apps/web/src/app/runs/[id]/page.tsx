@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LocalTime } from "@/components/local-time";
 import { notFound } from "next/navigation";
 import { BackChevron, NextChevron } from "@/components/chevron";
-import { loadComparison, previousRun } from "@/lib/compare-data";
+import { loadComparison, previousRun, viewportsOf } from "@/lib/compare-data";
 import { ScoreCards } from "@/components/scores";
 import { duration } from "@/lib/format";
 import { loadRunScores } from "@/lib/scores-data";
@@ -78,7 +78,9 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
         </h1>
         <p className="text-sm text-ink/75">
           <LocalTime iso={run.created_at} />
-          {s && ` · took ${duration(s.durationMs)}`} · Automated, passive scan — not a full accessibility or security audit.
+          {s && ` · took ${duration(s.durationMs)}`}
+          {s && (s.viewports?.includes("mobile") ? " · desktop and mobile widths" : " · desktop width only")}
+          {s?.mobileFailed ? ` (mobile check failed on ${s.mobileFailed} ${s.mobileFailed === 1 ? "page" : "pages"})` : ""} · Automated, passive scan — not a full accessibility or security audit.
         </p>
         {s?.sample && (
           <p className="mt-2 text-sm text-ink/85">
@@ -119,6 +121,9 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
                 <li><span className="chip mr-1.5 bg-mint">{comparison.fixed.length}</span>fixed</li>
                 <li><span className="chip mr-1.5 bg-pink">{comparison.new.length}</span>new</li>
                 <li><span className="chip mr-1.5 bg-paper">{comparison.open.length}</span>still open</li>
+                {comparison.newlyChecked.length > 0 && (
+                  <li><span className="chip mr-1.5 bg-teal">{comparison.newlyChecked.length}</span>first seen at mobile width</li>
+                )}
                 {comparison.notRechecked.length > 0 && (
                   <li><span className="chip mr-1.5 bg-tan">{comparison.notRechecked.length}</span>not rechecked</li>
                 )}
@@ -173,7 +178,7 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
             ))}
           </nav>
 
-          <View runId={run.id} siteId={run.site_id} showHidden={showHidden} />
+          <View runId={run.id} siteId={run.site_id} showHidden={showHidden} viewports={viewportsOf(s)} />
         </>
       )}
     </main>

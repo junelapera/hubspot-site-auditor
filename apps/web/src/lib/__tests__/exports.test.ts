@@ -7,7 +7,7 @@ const fix = { summary: "Raise contrast.", steps: ["Darken the text."], snippet: 
 const issue = (over: Partial<IssueRow>): IssueRow => ({
   id: 1, fingerprint: "f", rule_id: "color-contrast", impact: "serious", help: "Elements must meet minimum color contrast ratio thresholds",
   help_url: "https://dequeuniversity.com/rules/axe/4.10/color-contrast", tags: ["wcag2aa", "wcag143"], scope: "module", module: ".hero", named: true, path: "a",
-  html: "<a>", failure_summary: "", fix, pages: ["https://x.com/a"], ...over,
+  html: "<a>", failure_summary: "", fix, pages: ["https://x.com/a"], viewports: ["desktop"], ...over,
 });
 const summary = (scope: ModuleSummaryRow["scope"], module: string | null): ModuleSummaryRow => ({
   run_id: "r", scope, module, named: true, issue_count: 1, worst_impact: "serious", pages_affected: 1, rules: [], weight: 1,
@@ -32,6 +32,17 @@ test("issues: one row per module + rule, pages merged, worst severity kept", () 
   const contrast = lines.find((l) => l.includes("color-contrast"))!;
   assert.match(contrast, /^\[\.hero\] Elements must meet/);
   assert.match(contrast, /,High,critical,\.hero,Module code,color-contrast,2,3,/);
+});
+
+test("issues: Found at lists every width any issue in the group was seen at", () => {
+  const csv = issuesCsv(
+    [issue({ id: 1, path: "a.one", viewports: ["mobile"] }), issue({ id: 2, path: "a.two" }), issue({ id: 3, rule_id: "image-alt", viewports: ["mobile"] })],
+    [summary("module", ".hero")],
+  );
+  const lines = parse(csv);
+  assert.match(lines[0], /,Pages affected,Found at,Description,/);
+  assert.match(lines.find((l) => l.includes("color-contrast"))!, /,color-contrast,2,1,"desktop, mobile",/);
+  assert.match(lines.find((l) => l.includes("image-alt"))!, /,image-alt,1,1,mobile,/);
 });
 
 test("issues: rows follow the module list order", () => {

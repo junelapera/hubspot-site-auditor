@@ -4,6 +4,8 @@
 export type Scope = "module" | "global" | "template" | "content" | "embed" | "unknown";
 export type Impact = "critical" | "serious" | "moderate" | "minor";
 export type RunStatus = "queued" | "running" | "done" | "failed";
+/** Window width axe ran at: desktop 1366px, mobile 390px. */
+export type Viewport = "desktop" | "mobile";
 
 export interface Snippet {
   lang: "html" | "hubl" | "css" | "js" | "text";
@@ -49,6 +51,10 @@ export interface RunSummary {
   jsLibrariesVulnerable?: number | null;
   forms?: number;
   formIssues?: number;
+  /** Widths axe ran at. Missing on desktop-only scans from before the mobile pass. */
+  viewports?: Viewport[];
+  /** Pages whose mobile pass failed (their issues are desktop only). */
+  mobileFailed?: number;
   /** Sampled scans: sitemap pages, pages read, modules found and covered. */
   sample?: { discovered: number; fetched: number; modules: number; covered: number } | null;
 }
@@ -97,6 +103,8 @@ export interface IssueRow {
   failure_summary: string;
   fix: Fix;
   pages: string[];
+  /** Widths it was found at; '{desktop}' on scans from before the mobile pass. */
+  viewports: Viewport[];
 }
 
 export interface PageRow {
@@ -105,6 +113,8 @@ export interface PageRow {
   status: number | null;
   redirected: boolean;
   error: string | null;
+  /** The mobile pass failed though the desktop one worked. */
+  mobile_error: string | null;
   finding_count: number;
 }
 

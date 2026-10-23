@@ -25,7 +25,7 @@ import {
 } from "./fixes.js";
 import { samplePages, type SampleResult } from "./sample.js";
 import { scanPages } from "./scan.js";
-import type { Issue, ModuleSummary, PageResult } from "./types.js";
+import type { Issue, ModuleSummary, PageResult, Viewport } from "./types.js";
 
 export interface AuditInput extends CrawlOptions {
   domain?: string;
@@ -35,6 +35,8 @@ export interface AuditInput extends CrawlOptions {
   extraUrls?: string[];
   /** Read every sitemap page's HTML, then scan only enough pages to cover every module (up to limit). */
   sample?: boolean;
+  /** Also run axe at mobile width (default true). */
+  mobile?: boolean;
   concurrency?: number;
 }
 
@@ -71,6 +73,9 @@ export interface AuditResult {
     namedModuleRate: number;
     durationMs: number;
     stageMs: { crawl: number; scan: number; links: number; security: number };
+    /** Widths axe ran at. Pages whose mobile pass failed are desktop only (mobileFailed). */
+    viewports: Viewport[];
+    mobileFailed: number;
     /** Sampling mode: sitemap pages, pages read, modules found and covered. Null for a normal scan. */
     sample: Omit<SampleResult, "urls"> | null;
   };
@@ -115,7 +120,8 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
 
   // The Retire.js database is downloaded fresh each scan; if GitHub is down, scan without it.
   const detector = await loadRetireRepo().then(createDetector, () => null);
-  const pages = await scanPages(urls, { concurrency: input.concurrency, onPage: hooks.onPage, detector: detector ?? undefined });
+  const mobile = input.mobile ?? true;
+  const pages = await scanPages(urls, { concurrency: input.concurrency, onPage: hooks.onPage, detector: detector ?? undefined, mobile });
   const scanMs = mark();
 
   // Checks run against the host the pages actually live on (after any bare → www redirect).
@@ -165,6 +171,8 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
       rawFindings: pages.reduce((n, p) => n + p.findings.length, 0),
       namedModuleRate: namedModuleRate(issues),
       durationMs: Date.now() - started,
+      viewports: mobile ? ["desktop", "mobile"] : ["desktop"],
+      mobileFailed: pages.filter((p) => p.mobileError).length,
       stageMs: { crawl: crawlMs, scan: scanMs, links: linksMs, security: securityMs },
       sample: sample && { discovered: sample.discovered, fetched: sample.fetched, modules: sample.modules, covered: sample.covered },
     },
