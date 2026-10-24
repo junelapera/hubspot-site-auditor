@@ -40,6 +40,8 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 
 ### 2. File Manager pass
 
+Deferred (Oct 24, 2026): skipped for now; needs a HubSpot private app token and an answer to the alt-text question below.
+
 - [ ] Site settings: store a HubSpot private app token (`files` scope), encrypted
 - [ ] Pull File Manager images through the Files API
 - [ ] Run the alt-text checks that the API data supports (see open question below)

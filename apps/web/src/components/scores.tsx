@@ -15,8 +15,8 @@ function Change({ now, before, unit }: { now: number; before: number | null | un
   return <>{diff > 0 ? "Up" : "Down"} {Math.abs(diff)} {unit} from {before}</>;
 }
 
-/** Score and grade cards for a scan report, with how each is worked out. */
-export function ScoreCards({ scores, previous }: { scores: RunScores; previous?: RunScores }) {
+/** Score and grade cards for a scan report, with how each is worked out. forClient leaves out the team's marks (client link). */
+export function ScoreCards({ scores, previous, forClient = false }: { scores: RunScores; previous?: RunScores; forClient?: boolean }) {
   const { accessibility, security } = scores;
   return (
     <section aria-label="Scores" className="space-y-2">
@@ -62,7 +62,7 @@ export function ScoreCards({ scores, previous }: { scores: RunScores; previous?:
             <strong>Accessibility score:</strong> each scanned page starts at 100 and loses {IMPACT_PENALTY.critical} points per
             critical issue on it, {IMPACT_PENALTY.serious} per serious, {IMPACT_PENALTY.moderate} per moderate and {IMPACT_PENALTY.minor} per
             minor (never below 0). The score is the average over all scanned pages, so it stays comparable when the page limit changes.
-            It counts automated (axe) issues only and leaves out issues marked won&apos;t fix or false positive.
+            It counts automated (axe) issues only{forClient ? "." : <> and leaves out issues marked won&apos;t fix or false positive.</>}
           </p>
           <p>
             {/* Keep in step with SECURITY_PENALTY in lib/scores.ts. */}

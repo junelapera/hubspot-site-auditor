@@ -162,3 +162,43 @@ export async function queueOldUrlCheck(siteId: string, _prev: OldUrlCheckState, 
   const result = await insertRun(siteId, { oldUrls: urls }, "redirects");
   return result.error ? fail(result.error) : {};
 }
+
+// ---------- Client report links ----------
+
+const LINK_EXPIRY_DAYS: Record<string, number | null> = { never: null, "7": 7, "30": 30, "90": 90 };
+
+/** Create the scan's client link, replacing (revoking) the current one if there is one. */
+export async function createReportLink(runId: string, _prev: FormState, formData: FormData): Promise<FormState> {
+  const { supabase } = await requireUser();
+  const choice = String(formData.get("expiry") ?? "never");
+  if (!(choice in LINK_EXPIRY_DAYS)) return { error: "Pick when the link expires." };
+  const days = LINK_EXPIRY_DAYS[choice];
+
+  // One active link per scan: the old one stops working before the new one exists.
+  const { error: revokeError } = await supabase
+    .from("report_links")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("run_id", runId)
+    .is("revoked_at", null);
+  if (revokeError) return { error: revokeError.message };
+
+  const expires_at = days ? new Date(Date.now() + days * 86_400_000).toISOString() : null;
+  const { error } = await supabase.from("report_links").insert({ run_id: runId, expires_at });
+  if (error) return { error: error.code === "42501" ? "Links can only be made for finished scans." : error.message };
+
+  revalidatePath(`/runs/${runId}`);
+  return {};
+}
+
+/** Turn off the scan's client link. Anyone who has it sees "link turned off" from then on. */
+export async function revokeReportLink(runId: string): Promise<FormState> {
+  const { supabase } = await requireUser();
+  const { error } = await supabase
+    .from("report_links")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("run_id", runId)
+    .is("revoked_at", null);
+  if (error) return { error: error.message };
+  revalidatePath(`/runs/${runId}`);
+  return {};
+}

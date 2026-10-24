@@ -49,6 +49,10 @@ Broken links come with a likely replacement where one can be found: a live page 
 
 **Check old URLs** on a site's page checks that an old site's URLs still land somewhere after a move to HubSpot. Add the old sitemap files (XML, `.xml.gz`, or a text list; for WordPress, save each sitemap that `/sitemap_index.xml` lists before the domain moves), or paste URLs or paths. Each old path is requested on the site, and the report groups them: no redirect (404), redirects to a dead page, goes to the home page, redirect chain, redirected, still live. Old URLs with a problem get a likely new page from the site's sitemap, and **Redirects for HubSpot import** downloads them as HubSpot's redirect import file (500 rows per file). Up to 5,000 old URLs per check.
 
+## Client report links
+
+**Client link** on a scan's report creates a read-only link to share with the client: no account needed. It shows the scores, issues by module, pages and security checks, and says the scan is automated and passive. Issues marked won't fix or false positive, notes and fix suggestions are left out. Links can expire (7, 30 or 90 days) and can be replaced or turned off at any time; a turned-off link stops working at once.
+
 ## Scores
 
 Each scan gets an **accessibility score** (0–100) and a **security grade** (A–F), shown on the report with the change since the previous scan, and next to every scan in the site's history.

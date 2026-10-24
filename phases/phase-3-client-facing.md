@@ -1,6 +1,6 @@
 # Phase 3 — Client-facing
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: Not started · Depends on: [Phase 2](phase-2-rescans-and-file-manager.md)
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — shareable client report done · Depends on: [Phase 2](phase-2-rescans-and-file-manager.md)
 
 ## Goal
 
@@ -18,12 +18,12 @@ Turn the internal tool into something clients and project managers use directly,
 
 ### 1. Shareable client report
 
-- [ ] Read-only report link per run, no login required
-- [ ] Unguessable token in the URL; revoke and regenerate from the app
-- [ ] Optional expiry date per link
-- [ ] Client-friendly layout: summary, accessibility score, security grade, module list, page view
-- [ ] Hide internal notes and won't-fix / false-positive reasons by default
-- [ ] Clear statement that the scan is automated and passive — not a full audit or certification
+- [x] Read-only report link per run, no login required
+- [x] Unguessable token in the URL; revoke and regenerate from the app
+- [x] Optional expiry date per link (never, 7, 30 or 90 days)
+- [x] Client-friendly layout: summary, accessibility score, security grade, module list, page view
+- [x] Hide internal notes and won't-fix / false-positive reasons by default (marked issues, notes, fix suggestions and failing HTML are never sent to the page)
+- [x] Clear statement that the scan is automated and passive — not a full audit or certification
 
 ### 2. Scheduled scans
 
@@ -58,8 +58,8 @@ Turn the internal tool into something clients and project managers use directly,
 
 ## Acceptance criteria
 
-- [ ] A client can open a report link with no account and see only that run's report
-- [ ] Revoking a link stops it working immediately
+- [x] A client can open a report link with no account and see only that run's report
+- [x] Revoking a link stops it working immediately
 - [ ] Monthly scans run unattended for all active a11y clients for one full cycle
 - [ ] Teamwork push re-run on the same scan creates **no** duplicate tasks
 - [ ] Module path resolved for **95%+** of module issues on sites where the token has access

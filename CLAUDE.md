@@ -52,6 +52,7 @@ Run `pnpm test` and `pnpm typecheck` before saying a change is done. For web cha
 - A `"use server"` file may only export async functions. Exporting a constant breaks the build with "module has no exports".
 - Server code reads data through `createClient()` / `requireUser()` from `@/lib/supabase/server`, as the signed-in user, so RLS applies.
 - The service role key is used in the web app **only** through `createAdminClient()` (`@/lib/supabase/admin`), for user admin: invites and the team list. Call it after `requireUser()` plus an `isAgencyEmail()` check. Never use it for table data, and never give it a `NEXT_PUBLIC_` name.
+- **`/r/<token>` (client report links) is public.** It reads data only through the `shared_report(token)` database function, never tables or the admin client. Anything added to that page must be added to the function on purpose: it decides what clients can see (no marked issues, notes, fixes or raw errors).
 - **Accounts are invite-only.** Public sign-up is off; invites are one-time links shown to the inviter (no email). `/accept-invite` must only use the token on the button's POST, never on GET, because chat apps fetch links to build previews.
 - The module list is built in code (`lib/summary.ts`) from the issues left after removing marked ones; the `module_summary` database view is no longer used by the web app. Anything counting issues must respect `issue_marks` the same way.
 - `apps/web/src/lib/types.ts` mirrors the database by hand. Update it when a migration changes a table.

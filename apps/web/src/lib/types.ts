@@ -255,3 +255,25 @@ export interface IssueMark {
   created_at: string;
   updated_at: string;
 }
+
+/** A read-only client link to one scan's report. One active (not revoked) link per scan. */
+export interface ReportLink {
+  id: string;
+  run_id: string;
+  token: string;
+  created_by: string | null;
+  created_at: string;
+  expires_at: string | null;
+  revoked_at: string | null;
+}
+
+/** What shared_report(token) returns: only what the client report shows. Marked issues are already left out. */
+export interface SharedReport {
+  site: { domain: string; name: string | null };
+  created_at: string;
+  expires_at: string | null;
+  summary: Pick<RunSummary, "pagesScanned" | "pagesFailed" | "viewports" | "sample">;
+  issues: Pick<IssueRow, "id" | "rule_id" | "impact" | "help" | "help_url" | "tags" | "scope" | "module" | "named" | "pages" | "viewports">[];
+  pages: { url: string; status: number | null; failed: boolean }[];
+  security: Pick<SecurityRow, "check_id" | "name" | "pass" | "current" | "recommended">[];
+}

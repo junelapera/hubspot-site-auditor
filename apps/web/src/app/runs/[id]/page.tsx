@@ -1,13 +1,15 @@
+import { headers } from "next/headers";
 import Link from "next/link";
 import { LocalTime } from "@/components/local-time";
 import { notFound } from "next/navigation";
 import { BackChevron, NextChevron } from "@/components/chevron";
 import { loadComparison, previousRun, viewportsOf } from "@/lib/compare-data";
+import { ReportLinkPanel } from "@/components/report-link";
 import { ScoreCards } from "@/components/scores";
 import { duration } from "@/lib/format";
 import { loadRunScores } from "@/lib/scores-data";
 import { requireUser } from "@/lib/supabase/server";
-import type { Run, Site } from "@/lib/types";
+import type { ReportLink, Run, Site } from "@/lib/types";
 import { RedirectCheckReport } from "./redirects";
 import { FormsView, ImagesView, LinksView, ModulesView, PagesView, RulesView, SecurityView } from "./views";
 
@@ -38,11 +40,14 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
   if (run.kind === "redirects") return <RedirectCheckReport run={run} />;
 
   // Marked issues are left out of the counts; the comparison is with the previous scan of this site.
-  const [{ data: fingerprints }, { data: marks }, previous] = await Promise.all([
+  const [{ data: fingerprints }, { data: marks }, previous, { data: shareLink }] = await Promise.all([
     supabase.from("issues").select("fingerprint").eq("run_id", run.id),
     supabase.from("issue_marks").select("fingerprint").eq("site_id", run.site_id),
     run.status === "done" ? previousRun(supabase, run) : Promise.resolve(null),
+    supabase.from("report_links").select("*").eq("run_id", run.id).is("revoked_at", null).maybeSingle<ReportLink>(),
   ]);
+  const activeLink = shareLink && (!shareLink.expires_at || new Date(shareLink.expires_at) > new Date()) ? shareLink : null;
+  const origin = await requestOrigin();
   const marked = new Set((marks ?? []).map((m) => m.fingerprint));
   const hiddenCount = (fingerprints ?? []).filter((f) => marked.has(f.fingerprint)).length;
   const [comparison, scores] = await Promise.all([
@@ -165,6 +170,11 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
             ))}
           </section>
 
+          <ReportLinkPanel
+            runId={run.id}
+            link={activeLink && { url: `${origin}/r/${activeLink.token}`, created_at: activeLink.created_at, expires_at: activeLink.expires_at }}
+          />
+
           <nav aria-label="Report views" className="flex flex-wrap gap-x-1 border-b border-ink">
             {(Object.keys(VIEWS) as ViewKey[]).map((key) => (
               <Link
@@ -185,4 +195,12 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
       )}
     </main>
   );
+}
+
+/** This app's origin as the browser sees it (local dev or production), for links to copy. */
+async function requestOrigin() {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
 }
