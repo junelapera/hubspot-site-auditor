@@ -59,20 +59,53 @@ export interface RunSummary {
   sample?: { discovered: number; fetched: number; modules: number; covered: number } | null;
 }
 
+/** audit: the full scan. redirects: an old-URL redirect check (options.oldUrls), with its own summary and report. */
+export type RunKind = "audit" | "redirects";
+
 export interface Run {
   id: string;
   site_id: string;
+  kind: RunKind;
   status: RunStatus;
-  /** Crawl settings at queue time; urls / extraUrls for a pasted page list. */
-  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[]; extraUrls?: string[]; sample?: boolean };
+  /** Crawl settings at queue time; urls / extraUrls for a pasted page list; oldUrls for a redirect check. */
+  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[]; extraUrls?: string[]; sample?: boolean; oldUrls?: string[] };
   stage: string | null;
   pages_total: number | null;
   pages_done: number;
   error: string | null;
+  /** A redirect check's summary is a RedirectCheckSummary instead: read it with redirectSummary(). */
   summary: RunSummary | null;
   created_at: string;
   started_at: string | null;
   finished_at: string | null;
+}
+
+export type OldUrlStatus = "live" | "redirected" | "missing" | "redirect-to-dead" | "redirect-home" | "redirect-chain" | "not-checked" | "error";
+
+/** runs.summary of a redirect check. Mirrors RedirectCheckResult.stats in apps/worker/src/pipeline.ts. */
+export interface RedirectCheckSummary {
+  total: number;
+  /** Lines that weren't a URL or path, left out. */
+  invalid: number;
+  counts: Record<OldUrlStatus, number>;
+  /** Problems with a likely new page. */
+  suggested: number;
+  /** False when the new site's sitemap couldn't be read: no suggestions then. */
+  sitemapRead: boolean;
+  durationMs: number;
+}
+
+export interface OldUrlRow {
+  id: number;
+  /** As listed in the old sitemap. */
+  url: string;
+  /** Its path and query on this site: what was requested. */
+  checked_url: string;
+  status: OldUrlStatus;
+  hops: { url: string; status: number }[];
+  final_status: number | null;
+  error: string | null;
+  replacement: { url: string; reason: string } | null;
 }
 
 export interface ModuleSummaryRow {

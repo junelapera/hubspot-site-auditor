@@ -2,26 +2,41 @@ import Link from "next/link";
 import { LocalTime, TimeAgo } from "@/components/local-time";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/badge";
-import { DeleteSiteForm, QueueRunButton, ScanUrlsForm, SiteSettingsForm } from "@/components/forms";
+import { DeleteSiteForm, OldUrlsForm, QueueRunButton, ScanUrlsForm, SiteSettingsForm } from "@/components/forms";
 import { RunProgress } from "@/components/run-progress";
 import { BackChevron, DisclosureChevron } from "@/components/chevron";
 import { GradeChip } from "@/components/scores";
 import { duration } from "@/lib/format";
+import { OLD_URL_PROBLEMS, redirectSummary } from "@/lib/old-urls";
 import { loadRunScores } from "@/lib/scores-data";
 import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
+
+const RUN_LIST_FIELDS = "id, site_id, kind, status, stage, pages_total, pages_done, error, summary, created_at, started_at, finished_at";
+type RunListRow = Omit<Run, "options"> & { urls: string[] | null; extraUrls: string[] | null; sample: boolean | null };
 
 export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
   const { id } = await params;
   const { supabase } = await requireUser();
 
-  const [{ data: site }, { data: runs }, { count: scanCount }] = await Promise.all([
+  const [{ data: site }, { data: runRows }, { count: scanCount }] = await Promise.all([
     supabase.from("sites").select("*").eq("id", id).maybeSingle<Site>(),
-    supabase.from("runs").select("*").eq("site_id", id).order("created_at", { ascending: false }).limit(50).returns<Run[]>(),
+    // Not options itself: a redirect check keeps up to 5,000 old URLs there.
+    supabase
+      .from("runs")
+      .select(`${RUN_LIST_FIELDS}, urls:options->urls, extraUrls:options->extraUrls, sample:options->sample`)
+      .eq("site_id", id)
+      .order("created_at", { ascending: false })
+      .limit(50)
+      .returns<RunListRow[]>(),
     // The list shows the latest 50; the delete warning needs them all.
     supabase.from("runs").select("id", { count: "exact", head: true }).eq("site_id", id),
   ]);
   if (!site) notFound();
+  const runs = runRows?.map(({ urls, extraUrls, sample, ...run }): Run => ({
+    ...run,
+    options: { urls: urls ?? undefined, extraUrls: extraUrls ?? undefined, sample: sample ?? undefined },
+  }));
 
   const scores = await loadRunScores(supabase, site.id, runs ?? []);
   const active = runs?.find((r) => r.status === "queued" || r.status === "running");
@@ -76,6 +91,17 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
         </div>
       </details>
 
+      <details className="group card">
+        <summary className="flex cursor-pointer select-none flex-wrap items-center gap-x-2 px-4 py-3">
+          <DisclosureChevron />
+          <span className="eyebrow">Check old URLs</span>
+          <span className="text-sm text-ink/75">find old-site URLs left without a redirect after a migration</span>
+        </summary>
+        <div className="border-t border-ink/30 p-4">
+          <OldUrlsForm site={site} disabled={Boolean(active)} />
+        </div>
+      </details>
+
       <section className="overflow-hidden card">
         <h2 className="eyebrow border-b border-ink px-4 py-3">Scans</h2>
         {!runs?.length ? (
@@ -95,7 +121,11 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
                     </span>
                   )}
                   <span className="text-ink/70"><TimeAgo iso={run.created_at} /></span>
-                  {run.options?.urls?.length ? (
+                  {run.kind === "redirects" ? (
+                    <span className="chip bg-teal">
+                      Redirect check{run.pages_total ? ` · ${run.pages_total.toLocaleString("en-US")} old URLs` : ""}
+                    </span>
+                  ) : run.options?.urls?.length ? (
                     <span className="chip bg-paper">{run.options.urls.length} listed {run.options.urls.length === 1 ? "page" : "pages"}</span>
                   ) : run.options?.extraUrls?.length ? (
                     <span className="chip bg-paper">Sitemap + {run.options.extraUrls.length} listed</span>
@@ -106,12 +136,13 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
                   ) : null}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-ink/85">
-                  {run.status === "done" && runs.slice(runs.indexOf(run) + 1).some((r) => r.status === "done") && (
+                  {run.status === "done" && run.kind === "audit" && runs.slice(runs.indexOf(run) + 1).some((r) => r.status === "done" && r.kind === "audit") && (
                     <Link href={`/runs/${run.id}/compare`} className="link font-mono text-[11px] font-bold tracking-[0.06em] uppercase">
                       Compare
                     </Link>
                   )}
-                  {run.status === "done" && run.summary && (
+                  {run.status === "done" && redirectSummary(run) && <RedirectCounts summary={redirectSummary(run)!} />}
+                  {run.status === "done" && run.kind === "audit" && run.summary && (
                     <>
                       {scores.get(run.id)?.accessibility != null && (
                         <span>Accessibility <span className="font-medium tabular-nums">{scores.get(run.id)!.accessibility}</span></span>
@@ -148,5 +179,23 @@ export default async function SitePage({ params }: PageProps<"/sites/[id]">) {
         </div>
       </details>
     </main>
+  );
+}
+
+function RedirectCounts({ summary }: { summary: NonNullable<ReturnType<typeof redirectSummary>> }) {
+  const problems = OLD_URL_PROBLEMS.reduce((n, k) => n + (summary.counts[k] ?? 0), 0);
+  return (
+    <>
+      <span>
+        <span className="font-medium tabular-nums">{summary.counts.missing ?? 0}</span> without a redirect
+      </span>
+      {problems > (summary.counts.missing ?? 0) && (
+        <span>
+          {problems - (summary.counts.missing ?? 0)} other redirect {problems - (summary.counts.missing ?? 0) === 1 ? "problem" : "problems"}
+        </span>
+      )}
+      <span>{(summary.counts.redirected ?? 0) + (summary.counts.live ?? 0)} OK</span>
+      <span className="text-ink/70">{duration(summary.durationMs)}</span>
+    </>
   );
 }

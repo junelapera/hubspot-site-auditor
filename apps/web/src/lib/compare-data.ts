@@ -5,13 +5,14 @@ import type { IssueMark, Run, RunSummary, Viewport } from "./types";
 
 const ISSUE_FIELDS = "fingerprint, rule_id, help, impact, scope, module, pages, viewports";
 
-/** The most recent finished scan of the same site before this one. */
+/** The most recent finished scan of the same site before this one (redirect checks aren't scans). */
 export async function previousRun(supabase: SupabaseClient, run: Pick<Run, "site_id" | "created_at">) {
   const { data } = await supabase
     .from("runs")
     .select("id, created_at, status, summary")
     .eq("site_id", run.site_id)
     .eq("status", "done")
+    .eq("kind", "audit")
     .lt("created_at", run.created_at)
     .order("created_at", { ascending: false })
     .limit(1)

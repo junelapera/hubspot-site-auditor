@@ -8,18 +8,21 @@ import {
   librariesCsv,
   linksCsv,
   mixedContentCsv,
+  oldUrlRedirectsCsv,
+  oldUrlsCsv,
   redirectsCsv,
   rulesCsv,
   scriptsCsv,
   securityCsv,
   type ExportKind,
 } from "@/lib/exports";
+import { selectAll } from "@/lib/scores-data";
 import { createClient } from "@/lib/supabase/server";
 import { summarizeModules } from "@/lib/summary";
-import type { FormRow, ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ScriptDomainRow, SecurityRow } from "@/lib/types";
+import type { FormRow, ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, OldUrlRow, ScriptDomainRow, SecurityRow } from "@/lib/types";
 
-/** GET /runs/:id/export/:kind — CSV download, read as the signed-in user (RLS applies). */
-export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/export/[kind]">) {
+/** GET /runs/:id/export/:kind — CSV download, read as the signed-in user (RLS applies). old-url-redirects takes ?part=N (500 rows each). */
+export async function GET(request: NextRequest, ctx: RouteContext<"/runs/[id]/export/[kind]">) {
   const { id, kind } = await ctx.params;
   if (!EXPORT_KINDS.includes(kind as ExportKind)) {
     return NextResponse.json({ error: "Unknown export" }, { status: 404 });
@@ -37,6 +40,7 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/e
   if (!run || run.status !== "done") return NextResponse.json({ error: "Scan not found" }, { status: 404 });
 
   let csv: string;
+  let filename = exportFilename(run.sites.domain, run.created_at, kind as ExportKind);
   switch (kind as ExportKind) {
     case "issues":
     case "rules": {
@@ -85,6 +89,17 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/e
       csv = formsCsv(data ?? []);
       break;
     }
+    case "old-urls":
+    case "old-url-redirects": {
+      const rows = await selectAll<OldUrlRow>((from, to) => supabase.from("old_urls").select("*").eq("run_id", id).order("id").range(from, to));
+      if (kind === "old-urls") csv = oldUrlsCsv(rows);
+      else {
+        const part = Math.max(1, Math.floor(Number(request.nextUrl.searchParams.get("part")) || 1));
+        csv = oldUrlRedirectsCsv(rows, part);
+        if (part > 1) filename = filename.replace(/\.csv$/, `-part-${part}.csv`);
+      }
+      break;
+    }
     case "libraries": {
       const { data } = await supabase.from("js_libraries").select("*").eq("run_id", id).order("id").returns<JsLibraryRow[]>();
       csv = librariesCsv(data ?? []);
@@ -95,7 +110,7 @@ export async function GET(_request: NextRequest, ctx: RouteContext<"/runs/[id]/e
   return new NextResponse(csv, {
     headers: {
       "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="${exportFilename(run.sites.domain, run.created_at, kind as ExportKind)}"`,
+      "content-disposition": `attachment; filename="${filename}"`,
       "cache-control": "private, no-store",
     },
   });

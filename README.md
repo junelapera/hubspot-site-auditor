@@ -45,6 +45,10 @@ Any issue can be marked **won't fix** or **false positive** with a note. Marks b
 
 Broken links come with a likely replacement where one can be found: a live page with a similar address, the closest ID for a broken anchor, or an archived copy for a dead external page. **Download redirects CSV** on the Links tab gives a file for HubSpot's URL redirect import (Settings, Domains & URLs, URL redirects, Import). Review it before importing; the replacements are guesses.
 
+## Redirect check (migrations)
+
+**Check old URLs** on a site's page checks that an old site's URLs still land somewhere after a move to HubSpot. Add the old sitemap files (XML, `.xml.gz`, or a text list; for WordPress, save each sitemap that `/sitemap_index.xml` lists before the domain moves), or paste URLs or paths. Each old path is requested on the site, and the report groups them: no redirect (404), redirects to a dead page, goes to the home page, redirect chain, redirected, still live. Old URLs with a problem get a likely new page from the site's sitemap, and **Redirects for HubSpot import** downloads them as HubSpot's redirect import file (500 rows per file). Up to 5,000 old URLs per check.
+
 ## Scores
 
 Each scan gets an **accessibility score** (0–100) and a **security grade** (A–F), shown on the report with the change since the previous scan, and next to every scan in the site's history.
@@ -135,6 +139,7 @@ pnpm scan www.example.com --urls https://www.example.com/,https://www.example.co
 pnpm scan www.example.com --limit 10 --extra-urls https://www.example.com/landing           # sitemap plus these
 pnpm scan www.example.com --sample --limit 20   # read every page, scan the fewest (up to 20) that cover every module
 pnpm scan www.example.com --limit 10 --desktop-only   # skip the mobile-width axe pass
+pnpm scan www.example.com --old-urls old-sitemap.xml  # redirect check instead of a scan (sitemap XML or one URL per line)
 ```
 
 Every scan runs axe twice per page, at desktop (1366px) and mobile (390px) width. An element that fails at both widths is one issue; the report marks issues found at only one width "Mobile only" or "Desktop only".

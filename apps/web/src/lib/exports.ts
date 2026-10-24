@@ -2,9 +2,10 @@
 import { toCsv, type Cell } from "./csv";
 import { ALT_CHECK_LABEL, FORM_CHECK_IMPACT, FORM_CHECK_LABEL, LINK_CHECK_LABEL, moduleLabel } from "./format";
 import { summarizeRules, WCAG_SC } from "./rules";
-import type { Fix, FormRow, Impact, ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ModuleSummaryRow, Scope, ScriptDomainRow, SecurityRow } from "./types";
+import { OLD_URL_LABEL, OLD_URL_ORDER } from "./old-urls";
+import type { Fix, FormRow, Impact, ImageRow, IssueRow, JsLibraryRow, LinkRow, MixedContentRow, ModuleSummaryRow, OldUrlRow, Scope, ScriptDomainRow, SecurityRow } from "./types";
 
-export const EXPORT_KINDS = ["issues", "rules", "images", "links", "redirects", "security", "mixed-content", "scripts", "libraries", "forms"] as const;
+export const EXPORT_KINDS = ["issues", "rules", "images", "links", "redirects", "security", "mixed-content", "scripts", "libraries", "forms", "old-urls", "old-url-redirects"] as const;
 export type ExportKind = (typeof EXPORT_KINDS)[number];
 
 const MAX_PAGES_LISTED = 50;
@@ -166,15 +167,68 @@ export function redirectRows(links: LinkRow[]): { from: string; to: string; note
   return [...rows.values()];
 }
 
-/** Ready for HubSpot > Domains & URLs > URL redirects > Import. Rows HubSpot would reject (URL over 140 characters) are left out. */
-export function redirectsCsv(links: LinkRow[]): string {
-  const rows = redirectRows(links)
-    .filter((r) => r.from.length <= MAX_REDIRECT_URL && r.to.length <= MAX_REDIRECT_URL)
-    .slice(0, MAX_REDIRECT_ROWS);
+type RedirectRow = { from: string; to: string; note: string };
+
+/** Rows HubSpot would accept: URLs up to 140 characters, and never a redirect away from the home page. */
+export function importableRedirects(rows: RedirectRow[]): RedirectRow[] {
+  return rows.filter((r) => r.from !== "/" && r.from.length <= MAX_REDIRECT_URL && r.to.length <= MAX_REDIRECT_URL);
+}
+
+/**
+ * Ready for HubSpot > Domains & URLs > URL redirects > Import, 500 rows per file (part 1, 2, …).
+ * A row whose old URL has a query string (WordPress ?p=123) only matches that query string,
+ * so it can't catch the bare path too.
+ */
+function redirectImportCsv(rows: RedirectRow[], part = 1): string {
+  const slice = importableRedirects(rows).slice((part - 1) * MAX_REDIRECT_ROWS, part * MAX_REDIRECT_ROWS);
   return toCsv(
     REDIRECT_HEADER,
-    rows.map((r): Cell[] => [r.from, r.to, "STANDARD", "301", "", "FALSE", "TRUE", "TRUE", "TRUE", r.note]),
+    slice.map((r): Cell[] => [r.from, r.to, "STANDARD", "301", "", r.from.includes("?") ? "TRUE" : "FALSE", "TRUE", "TRUE", "TRUE", r.note]),
     { bom: false },
+  );
+}
+
+/** This scan's link redirects. Rows HubSpot would reject (URL over 140 characters) are left out. */
+export function redirectsCsv(links: LinkRow[]): string {
+  return redirectImportCsv(redirectRows(links));
+}
+
+// ---------- Old-URL redirect check ----------
+
+/** Redirects an old-URL check calls for: missing or misdirected old URL → likely new page, chain start → final URL. */
+export function oldUrlRedirectRows(rows: OldUrlRow[]): RedirectRow[] {
+  const out: RedirectRow[] = [];
+  for (const r of rows) {
+    if (r.status === "redirect-chain") {
+      out.push({ from: pathAndQuery(r.checked_url), to: pathAndQuery(r.hops.at(-1)!.url), note: "Redirect chain shortened by site audit" });
+    } else if (r.replacement && (r.status === "missing" || r.status === "redirect-to-dead" || r.status === "redirect-home")) {
+      const note = { missing: "Old URL with no redirect", "redirect-to-dead": "Old URL redirected to a dead page", "redirect-home": "Old URL went to the home page" }[r.status];
+      out.push({ from: pathAndQuery(r.checked_url), to: pathAndQuery(r.replacement.url), note: `${note}, found by site audit` });
+    }
+  }
+  return out;
+}
+
+export function oldUrlRedirectsCsv(rows: OldUrlRow[], part = 1): string {
+  return redirectImportCsv(oldUrlRedirectRows(rows), part);
+}
+
+/** Every old URL with its result, problems first. */
+export function oldUrlsCsv(rows: OldUrlRow[]): string {
+  const rank = (r: OldUrlRow) => OLD_URL_ORDER.indexOf(r.status);
+  return toCsv(
+    ["Result", "Old URL", "Checked at", "Redirect hops", "Final status", "Likely new page", "Why"],
+    [...rows]
+      .sort((a, b) => rank(a) - rank(b) || a.id - b.id)
+      .map((r): Cell[] => [
+        OLD_URL_LABEL[r.status] ?? r.status,
+        r.url,
+        r.checked_url,
+        r.hops.map((h) => `${h.status} ${h.url}`).join("\n"),
+        r.final_status ?? r.error ?? "",
+        r.replacement?.url ?? "",
+        r.replacement?.reason ?? "",
+      ]),
   );
 }
 

@@ -12,6 +12,7 @@ const STAGE_LABEL: Record<string, string> = {
   scan: "Scanning pages",
   links: "Checking links",
   security: "Checking security",
+  redirects: "Checking old URLs",
   save: "Saving results",
 };
 
@@ -60,12 +61,13 @@ export function RunProgress({ initial }: { initial: Progress }) {
         <span>{STAGE_LABEL[run.stage ?? ""] ?? "Working"}…</span>
         {run.pages_total ? (
           <span>
-            {run.pages_done} / {run.pages_total} pages{run.stage === "sample" ? " read" : ""}
+            {run.pages_done} / {run.pages_total} {run.stage === "redirects" ? "URLs" : "pages"}
+            {run.stage === "sample" ? " read" : ""}
           </span>
         ) : null}
       </div>
       <div className="h-3 overflow-hidden rounded-full border border-ink bg-paper" aria-hidden="true">
-        <div className="h-full bg-ink transition-all" style={{ width: `${run.stage === "scan" || run.stage === "sample" ? pct : run.stage === "crawl" ? 2 : 100}%` }} />
+        <div className="h-full bg-ink transition-all" style={{ width: `${run.stage === "scan" || run.stage === "sample" || run.stage === "redirects" ? pct : run.stage === "crawl" ? 2 : 100}%` }} />
       </div>
     </div>
   );

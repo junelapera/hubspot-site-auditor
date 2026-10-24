@@ -18,13 +18,14 @@ export default async function ComparePage({ params, searchParams }: PageProps<"/
   const { supabase } = await requireUser();
 
   const { data: run } = await supabase.from("runs").select("*, sites(*)").eq("id", id).maybeSingle<Run & { sites: Site }>();
-  if (!run || run.status !== "done") notFound();
+  if (!run || run.status !== "done" || run.kind === "redirects") notFound();
 
   const { data: others } = await supabase
     .from("runs")
     .select("id, created_at, summary")
     .eq("site_id", run.site_id)
     .eq("status", "done")
+    .eq("kind", "audit")
     .neq("id", run.id)
     .order("created_at", { ascending: false })
     .returns<Pick<Run, "id" | "created_at" | "summary">[]>();

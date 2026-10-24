@@ -11,9 +11,10 @@ import {
   type MixedContentIssue,
   type ScriptDomain,
 } from "./checks/page-security.js";
+import { checkOldUrls, OLD_URL_STATUSES, toSiteUrl, type OldUrlResult, type OldUrlStatus } from "./checks/old-urls.js";
 import { archivedCopies, suggestPage } from "./checks/replacements.js";
 import { checkSecurity, type SecurityResult } from "./checks/security.js";
-import { crawlSitemap, type CrawlOptions } from "./crawl.js";
+import { crawlSitemap, normalizeDomain, type CrawlOptions } from "./crawl.js";
 import {
   suggestAltFix,
   suggestAxeFix,
@@ -189,4 +190,52 @@ export async function runAudit(input: AuditInput, hooks: AuditHooks = {}): Promi
 
 function unique(urls: string[]): string[] {
   return [...new Set(urls)];
+}
+
+export interface RedirectCheckResult {
+  siteHost: string;
+  oldUrls: OldUrlResult[];
+  stats: {
+    total: number;
+    /** Old URLs that aren't http(s) URLs or paths, left out. */
+    invalid: number;
+    counts: Record<OldUrlStatus, number>;
+    /** Problems with a likely new page. */
+    suggested: number;
+    /** False when the new site's sitemap couldn't be read: no suggestions then. */
+    sitemapRead: boolean;
+    durationMs: number;
+  };
+}
+
+/** Old-URL redirect check: each old URL's path on the new site, with a likely new page for the ones left without a working redirect. */
+export async function runRedirectCheck(
+  input: { domain: string; oldUrls: string[]; concurrency?: number },
+  hooks: { onUrls?: (count: number) => void | Promise<void>; onProgress?: (done: number, total: number) => void | Promise<void> } = {},
+): Promise<RedirectCheckResult> {
+  const started = Date.now();
+  // The live pages are the pool for suggestions; the sitemap's host is the site's canonical one (bare → www).
+  const sitemap = await crawlSitemap(input.domain).catch(() => null);
+  const origin = sitemap?.sitemapUrls[0] ? new URL(sitemap.sitemapUrls[0]).origin : normalizeDomain(input.domain).origin;
+  const valid = input.oldUrls.filter((u) => toSiteUrl(u, origin));
+  await hooks.onUrls?.(new Set(valid.map((u) => toSiteUrl(u, origin))).size);
+
+  const oldUrls = await checkOldUrls(valid, origin, {
+    livePages: sitemap?.sitemapUrls ?? [],
+    concurrency: input.concurrency,
+    onProgress: hooks.onProgress,
+  });
+  const counts = Object.fromEntries(OLD_URL_STATUSES.map((s) => [s, oldUrls.filter((r) => r.status === s).length])) as Record<OldUrlStatus, number>;
+  return {
+    siteHost: new URL(origin).hostname,
+    oldUrls,
+    stats: {
+      total: oldUrls.length,
+      invalid: input.oldUrls.length - valid.length,
+      counts,
+      suggested: oldUrls.filter((r) => r.replacement).length,
+      sitemapRead: Boolean(sitemap),
+      durationMs: Date.now() - started,
+    },
+  };
 }

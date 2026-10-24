@@ -1,6 +1,6 @@
 # Phase 2 — Re-scans and File Manager
 
-Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links, anchors, WCAG view, form check, URL lists, and sampling done · Depends on: [Phase 1](phase-1-mvp.md)
+Source: [HubSpot Site Auditor — PRD](../HubSpot%20Site%20Auditor%20—%20PRD.md) · Status: In progress — run history, comparison, scores, security checks, external links, anchors, WCAG view, form check, URL lists, sampling, mobile width, link replacements and the old-URL redirect check done · Depends on: [Phase 1](phase-1-mvp.md)
 
 ## Goal
 
@@ -65,9 +65,9 @@ Make the tool usable across a whole remediation sprint and a migration launch, n
 - [x] External links: 4xx / 5xx flagged; HEAD then GET; per-domain rate limit
 - [x] Skip list for external sites that block bots
 - [x] Broken anchor: `#section` points to an ID not on the page *
-- [ ] Upload an old sitemap (e.g. WordPress); flag old URLs that return 404
-- [ ] Suggest a new URL by slug match (matcher built: `suggestPage` in `apps/worker/src/checks/replacements.ts`; needs the old-sitemap upload)
-- [ ] CSV of missing redirects in HubSpot's bulk redirect import format
+- [x] Upload an old sitemap (e.g. WordPress); flag old URLs that return 404 ("Check old URLs": sitemap files or a pasted list, up to 5,000; also flags redirects to dead pages, to the home page, and chains)
+- [x] Suggest a new URL by slug match (`suggestPage` against the new site's sitemap)
+- [x] CSV of missing redirects in HubSpot's bulk redirect import format (500 rows per file)
 
 ### 5. Security check (remaining checks)
 

@@ -3,7 +3,7 @@
 // --once: drain the queue and exit instead of polling (used by the GitHub Actions workflow).
 import { hostname } from "node:os";
 import { createClient } from "@supabase/supabase-js";
-import { runAudit, type AuditResult } from "./pipeline.js";
+import { runAudit, runRedirectCheck, type AuditResult } from "./pipeline.js";
 
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -24,7 +24,9 @@ const REDACT = process.env.REDACT_LOGS === "1";
 interface Run {
   id: string;
   site_id: string;
-  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[]; extraUrls?: string[]; sample?: boolean };
+  /** audit: the full scan. redirects: check an old site's URLs (options.oldUrls) on this one. */
+  kind: "audit" | "redirects";
+  options: { include?: string[]; exclude?: string[]; limit?: number; urls?: string[]; extraUrls?: string[]; sample?: boolean; oldUrls?: string[] };
 }
 
 let stopping = false;
@@ -54,6 +56,7 @@ async function processRun(run: Run) {
     .eq("id", run.site_id)
     .single();
   if (error || !site) return fail(run.id, `Site not found: ${error?.message}`);
+  if (run.kind === "redirects") return processRedirectCheck(run, site.domain);
 
   try {
     const result = await runAudit(
@@ -97,6 +100,34 @@ async function processRun(run: Run) {
       },
     });
     console.log(`Run ${run.id}: done (${result.issues.length} issues, ${(result.stats.durationMs / 1000).toFixed(0)}s)`);
+  } catch (err) {
+    await fail(run.id, (err as Error).message);
+  }
+}
+
+async function processRedirectCheck(run: Run, domain: string) {
+  try {
+    const result = await runRedirectCheck(
+      { domain, oldUrls: run.options.oldUrls ?? [] },
+      {
+        onUrls: (count) => update(run.id, { stage: "redirects", pages_total: count, pages_done: 0 }),
+        // Throttled: one progress write (and heartbeat) per 20 URLs.
+        onProgress: (done, total) => (done % 20 === 0 || done === total ? update(run.id, { pages_done: done }) : undefined),
+      },
+    );
+    await update(run.id, { stage: "save" });
+    await insert("old_urls", result.oldUrls.map((r) => ({
+      run_id: run.id,
+      url: r.url,
+      checked_url: r.checkedUrl,
+      status: r.status,
+      hops: r.hops,
+      final_status: r.finalStatus,
+      error: r.error ?? null,
+      replacement: r.replacement,
+    })));
+    await update(run.id, { status: "done", stage: null, finished_at: new Date().toISOString(), summary: result.stats });
+    console.log(`Run ${run.id}: done (${result.stats.total} old URLs, ${(result.stats.durationMs / 1000).toFixed(0)}s)`);
   } catch (err) {
     await fail(run.id, (err as Error).message);
   }

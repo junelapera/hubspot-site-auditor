@@ -8,6 +8,7 @@ import { duration } from "@/lib/format";
 import { loadRunScores } from "@/lib/scores-data";
 import { requireUser } from "@/lib/supabase/server";
 import type { Run, Site } from "@/lib/types";
+import { RedirectCheckReport } from "./redirects";
 import { FormsView, ImagesView, LinksView, ModulesView, PagesView, RulesView, SecurityView } from "./views";
 
 const VIEWS = {
@@ -34,6 +35,7 @@ export default async function RunPage({ params, searchParams }: PageProps<"/runs
     .eq("id", id)
     .maybeSingle<Run & { sites: Site }>();
   if (!run) notFound();
+  if (run.kind === "redirects") return <RedirectCheckReport run={run} />;
 
   // Marked issues are left out of the counts; the comparison is with the previous scan of this site.
   const [{ data: fingerprints }, { data: marks }, previous] = await Promise.all([

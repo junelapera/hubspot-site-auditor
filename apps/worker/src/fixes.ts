@@ -355,9 +355,12 @@ export function suggestAltFix(img: FlaggedImage): FixSuggestion[] {
 export const REDIRECT_CSV_HEADER =
   "original url,redirect to,redirect type,redirect style,priority,match query strings,ignore trailing slash,ignore protocol,disable if page exists,note";
 
-/** One row for HubSpot's bulk redirect import: a permanent (301) redirect that steps aside if a live page appears at the old URL. */
+/**
+ * One row for HubSpot's bulk redirect import: a permanent (301) redirect that steps aside if a live page appears at the old URL.
+ * An old URL with a query string only matches that query string. Mirrors redirectImportCsv in apps/web/src/lib/exports.ts.
+ */
 export function redirectRow(from: string, to: string, note: string): string {
-  return [from, to, "STANDARD", "301", "", "FALSE", "TRUE", "TRUE", "TRUE", note].map(csvCell).join(",");
+  return [from, to, "STANDARD", "301", "", from.includes("?") ? "TRUE" : "FALSE", "TRUE", "TRUE", "TRUE", note].map(csvCell).join(",");
 }
 
 function csvCell(v: string): string {

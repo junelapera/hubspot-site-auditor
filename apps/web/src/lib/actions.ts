@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { triggerScanWorker } from "@/lib/dispatch";
 import { requireUser } from "@/lib/supabase/server";
+import { MAX_OLD_URLS, parseOldUrls } from "@/lib/old-urls";
+import type { RunKind } from "@/lib/types";
 import { MAX_LISTED_URLS, parseUrlList } from "@/lib/url-list";
 
 export type FormState = { error?: string };
@@ -60,9 +62,9 @@ export async function updateSiteSettings(siteId: string, _prev: FormState, formD
   return {};
 }
 
-type RunOptions = { urls?: string[]; extraUrls?: string[]; sample?: boolean };
+type RunOptions = { urls?: string[]; extraUrls?: string[]; sample?: boolean; oldUrls?: string[] };
 
-async function insertRun(siteId: string, options: RunOptions = {}): Promise<FormState> {
+async function insertRun(siteId: string, options: RunOptions = {}, kind: RunKind = "audit"): Promise<FormState> {
   const { supabase } = await requireUser();
 
   // One scan per site at a time, so a double-click doesn't queue two.
@@ -73,7 +75,7 @@ async function insertRun(siteId: string, options: RunOptions = {}): Promise<Form
     .in("status", ["queued", "running"]);
   if (count) return { error: "A scan is already queued or running for this site." };
 
-  const { error } = await supabase.from("runs").insert({ site_id: siteId, options });
+  const { error } = await supabase.from("runs").insert({ site_id: siteId, kind, options });
   if (error) return { error: error.message };
   await triggerScanWorker();
 
@@ -138,5 +140,25 @@ export async function queueListedRun(siteId: string, _prev: ListedRunState, form
   if (urls.length > MAX_LISTED_URLS) return fail(`That's ${urls.length} pages; the limit is ${MAX_LISTED_URLS} per scan.`);
 
   const result = await insertRun(siteId, mode === "add" ? { extraUrls: urls } : { urls });
+  return result.error ? fail(result.error) : {};
+}
+
+export type OldUrlCheckState = FormState;
+
+/** Old-URL redirect check: request each old URL's path on this site and report the ones without a working redirect. */
+export async function queueOldUrlCheck(siteId: string, _prev: OldUrlCheckState, formData: FormData): Promise<OldUrlCheckState> {
+  const text = String(formData.get("old_urls") ?? "");
+  const fail = (error: string): OldUrlCheckState => ({ error });
+
+  const { urls, rejected, sitemapIndex } = parseOldUrls(text);
+  if (sitemapIndex.length) return fail(`That's a sitemap index: it lists ${sitemapIndex.length} sitemaps, not pages. Add the sitemaps it lists instead.`);
+  if (rejected.length) {
+    const shown = rejected.slice(0, 3).map((r) => `“${r.slice(0, 80)}”`).join(", ");
+    return fail(`Fix or remove ${rejected.length === 1 ? "this line" : `these ${rejected.length} lines`} (not a URL or a path starting with /): ${shown}${rejected.length > 3 ? ", …" : ""}.`);
+  }
+  if (!urls.length) return fail("Add the old site's URLs: upload its sitemap, or paste one URL or path per line.");
+  if (urls.length > MAX_OLD_URLS) return fail(`That's ${urls.length.toLocaleString("en-US")} URLs; the limit is ${MAX_OLD_URLS.toLocaleString("en-US")} per check. Split the list.`);
+
+  const result = await insertRun(siteId, { oldUrls: urls }, "redirects");
   return result.error ? fail(result.error) : {};
 }

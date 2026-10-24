@@ -1,7 +1,19 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { addSite, deleteSite, queueListedRun, queueRun, queueSampledRun, updateSiteSettings, type FormState, type ListedRunState } from "@/lib/actions";
+import {
+  addSite,
+  deleteSite,
+  queueListedRun,
+  queueOldUrlCheck,
+  queueRun,
+  queueSampledRun,
+  updateSiteSettings,
+  type FormState,
+  type ListedRunState,
+  type OldUrlCheckState,
+} from "@/lib/actions";
+import { MAX_OLD_URLS, parseOldUrls } from "@/lib/old-urls";
 import { MAX_LISTED_URLS } from "@/lib/url-list";
 import type { Site } from "@/lib/types";
 
@@ -155,6 +167,114 @@ export function ScanUrlsForm({ site, disabled }: { site: Site; disabled?: boolea
         {disabled && <p className="text-sm text-ink/75">A scan is already queued or running.</p>}
       </div>
       <ErrorText state={state} id="urls-error" />
+    </form>
+  );
+}
+
+/** A sitemap file's text; .gz files are unzipped in the browser. */
+async function readSitemapFile(file: File): Promise<string> {
+  if (!/\.gz$/i.test(file.name)) return file.text();
+  return new Response(file.stream().pipeThrough(new DecompressionStream("gzip"))).text();
+}
+
+export function OldUrlsForm({ site, disabled }: { site: Site; disabled?: boolean }) {
+  const [text, setText] = useState("");
+  const [loaded, setLoaded] = useState<{ message: string; error?: boolean } | null>(null);
+  const [state, action, pending] = useActionState<OldUrlCheckState, FormData>(async (prev, formData) => {
+    const result = await queueOldUrlCheck(site.id, prev, formData);
+    if (!result.error) {
+      setText("");
+      setLoaded(null);
+    }
+    return result;
+  }, {});
+  const count = text.split("\n").filter((l) => l.trim()).length;
+
+  async function addFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const added: string[] = [];
+    const notes: string[] = [];
+    let error = false;
+    for (const file of files) {
+      try {
+        const { urls, sitemapIndex } = parseOldUrls(await readSitemapFile(file));
+        if (sitemapIndex.length) {
+          error = true;
+          notes.push(`${file.name} is a sitemap index: it lists ${sitemapIndex.length} sitemaps (${sitemapIndex.slice(0, 3).join(", ")}${sitemapIndex.length > 3 ? ", …" : ""}). Save those and add them instead.`);
+        } else if (!urls.length) {
+          error = true;
+          notes.push(`No URLs found in ${file.name}.`);
+        } else {
+          added.push(...urls);
+          notes.push(`${urls.length.toLocaleString("en-US")} URLs from ${file.name}.`);
+        }
+      } catch {
+        error = true;
+        notes.push(`Couldn't read ${file.name}.`);
+      }
+    }
+    if (added.length) {
+      const current = text.split("\n").map((l) => l.trim()).filter(Boolean);
+      setText([...new Set([...current, ...added])].join("\n"));
+    }
+    setLoaded({ message: `${added.length ? "Added " : ""}${notes.join(" ")}`, error });
+  }
+
+  return (
+    <form action={action} className="space-y-4">
+      <p className="max-w-3xl text-sm text-ink/85">
+        After a migration, every old URL should land on a live page. Add the old site&apos;s sitemap (save it before the domain moves to
+        HubSpot, e.g. WordPress&apos;s <span className="font-mono">/sitemap_index.xml</span> and each sitemap it lists). Each old path is
+        requested on {site.domain}; old URLs with no redirect, or one to a dead page or the home page, get a likely new page and a row in
+        a HubSpot redirects CSV.
+      </p>
+      <div>
+        <label htmlFor="old-url-files" className="label">Old sitemap files</label>
+        <input
+          id="old-url-files"
+          type="file"
+          multiple
+          accept=".xml,.gz,.txt,text/xml,application/xml,text/plain,application/gzip"
+          onChange={(e) => {
+            void addFiles(e.target.files);
+            e.target.value = "";
+          }}
+          aria-describedby="old-url-files-help old-url-files-status"
+          className="mt-1 block w-full max-w-md rounded-lg text-sm text-ink file:mr-3 file:cursor-pointer file:rounded-full file:border-2 file:border-ink file:bg-paper file:px-3 file:py-1.5 file:font-mono file:text-[11px] file:font-bold file:tracking-[0.08em] file:text-ink file:uppercase hover:file:bg-cream focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
+        />
+        <p id="old-url-files-help" className="mt-1 text-xs text-ink/70">
+          Sitemap XML (or .xml.gz), or a text file with one URL per line. Their URLs are added to the list below.
+        </p>
+        <p id="old-url-files-status" role="status" className={`mt-1 text-sm ${loaded?.error ? "text-rust" : "text-ink/85"}`}>
+          {loaded?.message}
+        </p>
+      </div>
+      <div>
+        <label htmlFor="old_urls" className="label">Old URLs</label>
+        <textarea
+          id="old_urls"
+          name="old_urls"
+          rows={6}
+          required
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={"https://old-site.com/about-us/\n/blog/2021/04/our-news/\n/?p=123"}
+          spellCheck={false}
+          aria-describedby="old-urls-help old-urls-error"
+          className="input mt-1 font-mono"
+        />
+        <p id="old-urls-help" className="mt-1 text-xs text-ink/70">
+          One URL or path per line, on any domain: only the path and query are checked, on {site.domain}. Up to{" "}
+          {MAX_OLD_URLS.toLocaleString("en-US")}.{count > 0 && ` ${count.toLocaleString("en-US")} ${count === 1 ? "line" : "lines"}.`}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="submit" disabled={pending || disabled} className="btn btn-primary">
+          {pending ? "Queuing…" : "Check old URLs"}
+        </button>
+        {disabled && <p className="text-sm text-ink/75">A scan is already queued or running.</p>}
+      </div>
+      <ErrorText state={state} id="old-urls-error" />
     </form>
   );
 }

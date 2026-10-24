@@ -14,9 +14,10 @@ const PAGE = 1000; // PostgREST's default row cap per request
 export async function loadRunScores(
   supabase: SupabaseClient,
   siteId: string,
-  runs: Pick<Run, "id" | "status" | "summary">[],
+  runs: (Pick<Run, "id" | "status" | "summary"> & Partial<Pick<Run, "kind">>)[],
 ): Promise<Map<string, RunScores>> {
-  const done = runs.filter((r) => r.status === "done" && r.summary);
+  // Redirect checks have no issues or security checks to score.
+  const done = runs.filter((r) => r.status === "done" && r.summary && r.kind !== "redirects");
   if (!done.length) return new Map();
   const ids = done.map((r) => r.id);
 
@@ -46,7 +47,8 @@ export async function loadRunScores(
   );
 }
 
-async function selectAll<T>(
+/** Every row of a query, a page (PostgREST's 1,000-row cap) at a time. */
+export async function selectAll<T>(
   query: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: Error | null }>,
 ): Promise<T[]> {
   const rows: T[] = [];

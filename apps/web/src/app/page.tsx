@@ -13,6 +13,8 @@ export default async function HomePage() {
     .from("sites")
     .select("*, runs(id, status, created_at, summary)")
     .order("created_at", { ascending: false })
+    // Last scan only: a redirect check has no issues or security results.
+    .eq("runs.kind", "audit")
     .order("created_at", { referencedTable: "runs", ascending: false })
     .limit(1, { referencedTable: "runs" })
     .returns<SiteWithRun[]>();

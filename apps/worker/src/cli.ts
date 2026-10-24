@@ -1,8 +1,10 @@
 // Local scan without Supabase: pnpm scan <domain> [--limit 20] [--include "/a/**"] [--exclude "/blog/page/**"] [--urls u1,u2] [--extra-urls u1,u2] [--sample] [--desktop-only]
-import { mkdirSync, writeFileSync } from "node:fs";
+// Old-URL redirect check instead of a scan: pnpm scan <domain> --old-urls old-sitemap.xml (or a .txt list, one URL or path per line)
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import { moduleLabel } from "./aggregate.js";
-import { runAudit } from "./pipeline.js";
+import { parseOldUrlList } from "./checks/old-urls.js";
+import { runAudit, runRedirectCheck } from "./pipeline.js";
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -15,6 +17,7 @@ const { values, positionals } = parseArgs({
     sample: { type: "boolean", default: false },
     "desktop-only": { type: "boolean", default: false },
     concurrency: { type: "string", default: "3" },
+    "old-urls": { type: "string" },
   },
 });
 
@@ -22,6 +25,44 @@ const domain = positionals[0];
 if (!domain && !values.urls) {
   console.error("Usage: pnpm scan <domain> [--limit N] [--include glob] [--exclude glob] [--urls u1,u2]");
   process.exit(1);
+}
+
+function save(siteHost: string, data: unknown) {
+  mkdirSync("scans", { recursive: true });
+  const out = `scans/${siteHost}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+  writeFileSync(out, JSON.stringify(data, null, 2));
+  console.log(`\nFull results: apps/worker/${out}`);
+}
+
+if (values["old-urls"]) {
+  if (!domain) {
+    console.error("Usage: pnpm scan <domain> --old-urls old-sitemap.xml");
+    process.exit(1);
+  }
+  const oldUrls = parseOldUrlList(readFileSync(values["old-urls"], "utf8"));
+  const check = await runRedirectCheck(
+    { domain, oldUrls },
+    {
+      onUrls: (n) => console.log(`Checking ${n} old URLs…`),
+      onProgress: (done, total) => (done % 20 === 0 || done === total ? console.log(`  ${done} / ${total}`) : undefined),
+    },
+  );
+  const { stats } = check;
+  console.log(`\n${stats.total} old URLs in ${(stats.durationMs / 1000).toFixed(0)}s${stats.invalid ? ` (${stats.invalid} lines skipped: not a URL or path)` : ""}${stats.sitemapRead ? "" : " · new sitemap not read, no suggestions"}`);
+  console.table(stats.counts);
+  console.table(
+    check.oldUrls
+      .filter((r) => !["live", "redirected"].includes(r.status))
+      .slice(0, 30)
+      .map((r) => ({
+        Status: r.status,
+        "Old path": r.checkedUrl.replace(/^https?:\/\/[^/]+/, ""),
+        Hops: r.hops.map((h) => h.status).join(" → ") || r.error,
+        Suggested: r.replacement?.url.replace(/^https?:\/\/[^/]+/, "") ?? "",
+      })),
+  );
+  save(check.siteHost, check);
+  process.exit(0);
 }
 
 const result = await runAudit(
@@ -123,7 +164,4 @@ for (const f of forms) {
   for (const x of f.findings) console.log(`    - ${x.check}${x.field ? ` [${x.field}]` : ""}: ${x.detail}`);
 }
 
-mkdirSync("scans", { recursive: true });
-const out = `scans/${result.siteHost}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
-writeFileSync(out, JSON.stringify(result, null, 2));
-console.log(`\nFull results: apps/worker/${out}`);
+save(result.siteHost, result);
